@@ -28,8 +28,8 @@ class player(pygame.sprite.Sprite):
         self.speed_x = 0
         self.speed_y = 0   
     #sonido    no encontré la forma de que este sonido no me pise el de las explosiones (descomentar y probar)
-#    def update(self):
-#       engine.play()      
+  #  def update(self):
+  #     engine.play()      
 
 class shooting(pygame.sprite.Sprite):
     def __init__(self):
@@ -89,12 +89,20 @@ while not game_over :
             # tanque rojo!!!
            if event.key == pygame.K_LEFT:
                red_tank.speed_x = -3
+               red_tank.image = pygame.image.load("red_tank_left.png").convert()
+               red_tank.image.set_colorkey(black)
            if event.key == pygame.K_RIGHT: 
                red_tank.speed_x = 3
+               red_tank.image = pygame.image.load("red_tank_rigth.png").convert()
+               red_tank.image.set_colorkey(black)
            if event.key == pygame.K_UP:
                red_tank.speed_y = -3
+               red_tank.image = pygame.image.load("red_tank.png").convert()     
+               red_tank.image.set_colorkey(black)
            if event.key == pygame.K_DOWN: 
                red_tank.speed_y = 3   
+               red_tank.image = pygame.image.load("red_tank_down.png").convert()     
+               red_tank.image.set_colorkey(black)
            if event.key == pygame.K_SPACE:
                 #creación del disparo
                  shoot = shooting()   
