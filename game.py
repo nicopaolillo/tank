@@ -11,16 +11,16 @@ screen = pygame.display.set_mode((width,height))
 fps = pygame.time.Clock()
 
 #carga de efectos de sonido
-engine = pygame.mixer.Sound("engine.ogg")
-explosion = pygame.mixer.Sound("explosion.ogg")
-shoot_sound = pygame.mixer.Sound("shoot.ogg")
+engine = pygame.mixer.Sound("sound/engine.ogg")
+explosion = pygame.mixer.Sound("sound/explosion.ogg")
+shoot_sound = pygame.mixer.Sound("sound/shoot.ogg")
 
 #clases......................................................................../
 
 class player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()  
-        self.image = pygame.image.load("red_tank.png").convert()     
+        self.image = pygame.image.load("assets/red_tank.png").convert()     
         self.image.set_colorkey(black)
         self.rect = self.image.get_rect()
         self.rect.centerx = width // 2
@@ -34,7 +34,7 @@ class player(pygame.sprite.Sprite):
 class shooting(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__() 
-        self.image = pygame.image.load("bullet.png").convert()
+        self.image = pygame.image.load("assets/bullet.png").convert()
         self.image.set_colorkey(white)
         self.rect = self.image.get_rect()
   
@@ -44,11 +44,12 @@ class shooting(pygame.sprite.Sprite):
 class box(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load("asset_wood.png").convert()
+        self.image = pygame.image.load("assets/asset_wood.png").convert()
         self.rect = self.image.get_rect()
         self.rect.x = random.randrange(width - self.rect.width)
         self.rect.y = random.randrange(height - 350)
         self.speed_y = 3
+
    #funcionalidad para que se vuelva a generar la caja al salir del mapa
     def update (self):
         if self.rect.y > height:
@@ -89,19 +90,19 @@ while not game_over :
             # tanque rojo!!!
            if event.key == pygame.K_LEFT:
                red_tank.speed_x = -3
-               red_tank.image = pygame.image.load("red_tank_left.png").convert()
+               red_tank.image = pygame.image.load("assets/red_tank_left.png").convert()
                red_tank.image.set_colorkey(black)
            if event.key == pygame.K_RIGHT: 
                red_tank.speed_x = 3
-               red_tank.image = pygame.image.load("red_tank_rigth.png").convert()
+               red_tank.image = pygame.image.load("assets/red_tank_rigth.png").convert()
                red_tank.image.set_colorkey(black)
            if event.key == pygame.K_UP:
                red_tank.speed_y = -3
-               red_tank.image = pygame.image.load("red_tank.png").convert()     
+               red_tank.image = pygame.image.load("assets/red_tank.png").convert()     
                red_tank.image.set_colorkey(black)
            if event.key == pygame.K_DOWN: 
                red_tank.speed_y = 3   
-               red_tank.image = pygame.image.load("red_tank_down.png").convert()     
+               red_tank.image = pygame.image.load("assets/red_tank_down.png").convert()     
                red_tank.image.set_colorkey(black)
            if event.key == pygame.K_SPACE:
                 #creación del disparo
@@ -160,9 +161,11 @@ while not game_over :
     for i in box_list:
         crash_list = pygame.sprite.spritecollide(red_tank,box_list,True)  
         if len(crash_list) == 1:
-            explosion.play()  
+            explosion.play()      
         for i in crash_list: 
-            all_sprites.remove(red_tank)
+           all_sprites.remove(red_tank) 
+          # red_tank.image = pygame.image.load("explosion_5.png").convert()  
+           
      
     #todos los metodos update de los objetos de esta lista funcionando
     all_sprites.update()
