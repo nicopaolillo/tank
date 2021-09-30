@@ -6,6 +6,9 @@ height = 700
 white = (255,255,255)
 black = (0,0,0)
 sand_color = (195,169,139)
+background = pygame.image.load("assets/background.png")
+#este eje y trabaja con el background
+y=700
 #Crea la ventana/fps!!!
 screen = pygame.display.set_mode((width,height))
 fps = pygame.time.Clock()
@@ -146,9 +149,13 @@ while not game_over :
         red_tank.rect.top = 0
     if red_tank.rect.bottom > height:
         red_tank.rect.bottom = height    
-         
-    #pinto la pantalla   
-    screen.fill(sand_color)
+
+    #fondo y movimiento de la imagen de fondo
+    y_relativa = y % background.get_rect().height
+    screen.blit(background,(0,y_relativa-background.get_rect().height))
+    if y_relativa < height: 
+        screen.blit(background,(0,y_relativa))
+    y += 1
 
     #actualización del movimiento del tanque rojo
     red_tank.rect.x += red_tank.speed_x
