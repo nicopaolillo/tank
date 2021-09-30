@@ -14,10 +14,11 @@ fps = pygame.time.Clock()
 engine = pygame.mixer.Sound("sound/engine.ogg")
 explosion = pygame.mixer.Sound("sound/explosion.ogg")
 shoot_sound = pygame.mixer.Sound("sound/shoot.ogg")
+iron_sound = pygame.mixer.Sound("sound/iron_sound.ogg")
 
 #clases......................................................................../
 
-class player(pygame.sprite.Sprite):
+class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()  
         self.image = pygame.image.load("assets/red_tank.png").convert()     
@@ -28,10 +29,10 @@ class player(pygame.sprite.Sprite):
         self.speed_x = 0
         self.speed_y = 0   
     #sonido    no encontré la forma de que este sonido no me pise el de las explosiones (descomentar y probar)
-  #  def update(self):
-  #     engine.play()      
+    #def update(self):
+    #   engine.play()      
 
-class shooting(pygame.sprite.Sprite):
+class Shooting(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__() 
         self.image = pygame.image.load("assets/bullet.png").convert()
@@ -41,37 +42,48 @@ class shooting(pygame.sprite.Sprite):
     def update(self):
         self.rect.y -= 3    
         
-class box(pygame.sprite.Sprite):
+class Box(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         self.image = pygame.image.load("assets/asset_wood.png").convert()
         self.rect = self.image.get_rect()
         self.rect.x = random.randrange(width - self.rect.width)
         self.rect.y = random.randrange(height - 350)
-        self.speed_y = 3
+        self.speed_y = 2
 
    #funcionalidad para que se vuelva a generar la caja al salir del mapa
     def update (self):
         if self.rect.y > height:
             self.rect.y = -10
-            self.rect.x = random.randrange(width)     
+            self.rect.x = random.randrange(width) 
+#clase hija
+class Box_iron(Box):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.image.load("assets/asset_iron.png").convert()
+
 #clases.................................................................................................\
 
 #creación de listas
-box_list = pygame.sprite.Group()
+box_wood_list = pygame.sprite.Group()
+box_iron_list = pygame.sprite.Group()
 shoot_list = pygame.sprite.Group()
 crash_list = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
 
-#creación del jugador con clase player
-red_tank = player()
+#instanciación del jugador con clase player
+red_tank = Player()
 
-#creación cajas de madera
-for i in range(10):
-    box_wood = box()
+#instanciación y guardado de cajas de acero
+for i in range(2):
+    box_iron = Box_iron()
+    box_iron_list.add(box_iron)
+    all_sprites.add(box_iron)
 
-#guardo las cajas en una lista
-    box_list.add(box_wood)
+#instanciación y guardado de cajas de madera
+for i in range(5):
+    box_wood = Box()    
+    box_wood_list.add(box_wood)
     all_sprites.add(box_wood)
 
 #guardo el sprite del tanque una lista
@@ -106,7 +118,7 @@ while not game_over :
                red_tank.image.set_colorkey(black)
            if event.key == pygame.K_SPACE:
                 #creación del disparo
-                 shoot = shooting()   
+                 shoot = Shooting()   
                  shoot.rect.x = red_tank.rect.x +10
                  shoot.rect.y = red_tank.rect.y -20
                  all_sprites.add(shoot)
@@ -143,30 +155,48 @@ while not game_over :
     red_tank.rect.y += red_tank.speed_y
     
     #actualización del movimiento vertical de todas las cajas
-    for i in box_list:
+    for i in box_wood_list:
         i.rect.y += i.speed_y
   
-    #colisiones del disparo con las cajas
+    for i in box_iron_list:
+        i.rect.y += i.speed_y
+
+    #colisiones del disparo con las cajas de madera
     for i in shoot_list:
-        shoot_hits_list = pygame.sprite.spritecollide(shoot,box_list,True)
+        shoot_hits_list = pygame.sprite.spritecollide(shoot,box_wood_list,True)
         for i in shoot_hits_list:
             all_sprites.remove(shoot)
             shoot_list.remove(shoot)
         if shoot.rect.y < -10:
             all_sprites.remove(shoot)
             shoot_list.remove(shoot)
-   
+
+    #colisiones del disparo con las cajas de acero
+    for i in shoot_list:
+        shoot_hits_list = pygame.sprite.spritecollide(shoot,box_iron_list,False)
+        for i in shoot_hits_list:
+            all_sprites.remove(shoot)
+            shoot_list.remove(shoot)
+            iron_sound.play()
+
     #colisión del tanque con cajas    
 
-    for i in box_list:
-        crash_list = pygame.sprite.spritecollide(red_tank,box_list,True)  
+    for i in box_wood_list:
+        crash_list = pygame.sprite.spritecollide(red_tank,box_wood_list,True)  
         if len(crash_list) == 1:
-            explosion.play()      
-        for i in crash_list: 
-           all_sprites.remove(red_tank) 
-          # red_tank.image = pygame.image.load("explosion_5.png").convert()  
-           
-     
+            explosion.play()     
+        for i in crash_list:   
+          #red_tank.image = pygame.image.load("assets/explosion_5.png").convert()
+           all_sprites.remove(red_tank)
+
+    for i in box_iron_list:   #revisar como optimizar las dos listas!!!
+        crash_list = pygame.sprite.spritecollide(red_tank,box_iron_list,True)  
+        if len(crash_list) == 1:
+            explosion.play()     
+        for i in crash_list:   
+          #red_tank.image = pygame.image.load("assets/explosion_5.png").convert()
+           all_sprites.remove(red_tank)
+
     #todos los metodos update de los objetos de esta lista funcionando
     all_sprites.update()
     #dibujo en la pantalla
