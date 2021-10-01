@@ -6,7 +6,7 @@ height = 700
 white = (255,255,255)
 black = (0,0,0)
 sand_color = (195,169,139)
-background = pygame.image.load("assets/background.png")
+background = pygame.image.load("assets/background_2.png")
 #este eje y trabaja con el background
 y=700
 #Crea la ventana/fps!!!
@@ -35,6 +35,18 @@ class Player(pygame.sprite.Sprite):
     #def update(self):
     #   engine.play()      
 
+class Death(pygame.sprite.Sprite):
+    def __init__(self,x,y):
+        super().__init__()
+        self.sheet = pygame.image.load("assets/fire.png").convert()
+        self.sheet.set_clip(pygame.Rect(0,0,180,200))
+        self.image = self.sheet.subsurface(self.sheet.get_clip())
+        self.image.set_colorkey(black)
+        self.rect = self.image.get_rect()
+        self.frame = 0  #buscar manera de crear una animación don los 9 recortes
+        self.rect.x = x
+        self.rect.y = y
+
 class Shooting(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__() 
@@ -50,15 +62,15 @@ class Box(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.image.load("assets/asset_wood.png").convert()
         self.rect = self.image.get_rect()
-        self.rect.x = random.randrange(width - self.rect.width)
+        self.rect.x = random.randrange(200 , 700)
         self.rect.y = random.randrange(height - 350)
-        self.speed_y = 2
+        self.speed_y = 1
 
    #funcionalidad para que se vuelva a generar la caja al salir del mapa
     def update (self):
         if self.rect.y > height:
             self.rect.y = -10
-            self.rect.x = random.randrange(width) 
+            self.rect.x = random.randrange(200,700) 
 #clase hija
 class Box_iron(Box):
     def __init__(self):
@@ -78,13 +90,13 @@ all_sprites = pygame.sprite.Group()
 red_tank = Player()
 
 #instanciación y guardado de cajas de acero
-for i in range(2):
+for i in range(1):
     box_iron = Box_iron()
     box_iron_list.add(box_iron)
     all_sprites.add(box_iron)
 
 #instanciación y guardado de cajas de madera
-for i in range(5):
+for i in range(3):
     box_wood = Box()    
     box_wood_list.add(box_wood)
     all_sprites.add(box_wood)
@@ -141,10 +153,10 @@ while not game_over :
             
 
    #control del jugador dentro del escenario
-    if red_tank.rect.right > width:
-        red_tank.rect.right = width
-    if red_tank.rect.left < 0:
-        red_tank.rect.left = 0  
+    if red_tank.rect.right > 800:
+        red_tank.rect.right = 800
+    if red_tank.rect.left < 200:
+        red_tank.rect.left = 200  
     if red_tank.rect.top < 0:
         red_tank.rect.top = 0
     if red_tank.rect.bottom > height:
@@ -193,7 +205,8 @@ while not game_over :
         if len(crash_list) == 1:
             explosion.play()     
         for i in crash_list:   
-          #red_tank.image = pygame.image.load("assets/explosion_5.png").convert()
+           death = Death(red_tank.rect.x,red_tank.rect.y) 
+           all_sprites.add(death)
            all_sprites.remove(red_tank)
 
     for i in box_iron_list:   #revisar como optimizar las dos listas!!!
@@ -201,7 +214,8 @@ while not game_over :
         if len(crash_list) == 1:
             explosion.play()     
         for i in crash_list:   
-          #red_tank.image = pygame.image.load("assets/explosion_5.png").convert()
+           death = Death(red_tank.rect.x,red_tank.rect.y) 
+           all_sprites.add(death)
            all_sprites.remove(red_tank)
 
     #todos los metodos update de los objetos de esta lista funcionando
