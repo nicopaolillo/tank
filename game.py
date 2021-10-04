@@ -302,6 +302,12 @@ def game():
                         text1 = font2.render("GAME OVER", False, (255,0,0))
                         text_rect = text1.get_rect(center=(width/2, height/2))
                         screen.blit(text1, text_rect)
+
+        #Texto
+        show_text("Energia: ", player.hp,0,60,140,60)
+        show_text("Misiles: ", player.misiles, 0,120,140,120)
+        show_text("Nivel: ", player.nivel,0,180,140,180)
+        show_text("Puntaje: ", player.puntaje,0,240,140,240)
                         
         #todos los metodos update de los objetos de esta lista funcionando
         all_sprites.update()
@@ -333,11 +339,6 @@ def game():
                 tank_red = Tank()    
                 tank_red_list.add(tank_red)
                 all_sprites.add(tank_red)
-        #Texto
-        show_text("Energia: ", player.hp,0,60,140,60)
-        show_text("Misiles: ", player.misiles, 0,120,140,120)
-        show_text("Nivel: ", player.nivel,0,180,140,180)
-        show_text("Puntaje: ", player.puntaje,0,240,140,240)
         #actualiza la pantalla
         pygame.display.flip()
         
