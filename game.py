@@ -20,6 +20,7 @@ music = pygame.mixer.music.load('sound/song.ogg')
 pygame.mixer.music.play(-1)
 #Fuente y tamaño de las letras
 font = pygame.font.SysFont(None, 40)
+font2 = pygame.font.SysFont(None, 100)
 
 #clases......................................................................../
 class Player(pygame.sprite.Sprite):
@@ -108,6 +109,10 @@ def show_text(string, int, position1, position2, position3, position4):
     screen.blit(text1, (position1,position2))
     text2 = font.render(str(int), True, (173,255,47))
     screen.blit(text2, (position3,position4))
+def gameOver():
+    text1 = font2.render("GAME OVER", True, (255,0,0))
+    text_rect = text1.get_rect(center=(width/2, height/2))
+    screen.blit(text1, text_rect)
 
 #clases.................................................................................................\
 
@@ -280,10 +285,7 @@ def game():
                     all_sprites.remove(player)
                     game_over=True
                     if(game_over):
-                        font2 = pygame.font.SysFont(None, 100)
-                        text1 = font2.render("GAME OVER", False, (255,0,0))
-                        text_rect = text1.get_rect(center=(width/2, height/2))
-                        screen.blit(text1, text_rect)
+                        gameOver()
             
         for i in tank_green_list:   #revisar como optimizar las dos listas!!!
             crash_list = pygame.sprite.spritecollide(player,tank_green_list,True)  
@@ -298,15 +300,17 @@ def game():
                     all_sprites.remove(player)
                     game_over=True
                     if(game_over):
-                        font2 = pygame.font.SysFont(None, 100)
-                        text1 = font2.render("GAME OVER", False, (255,0,0))
-                        text_rect = text1.get_rect(center=(width/2, height/2))
-                        screen.blit(text1, text_rect)
-                        
+                       gameOver()
         #todos los metodos update de los objetos de esta lista funcionando
-        all_sprites.update()
-        #dibujo en la pantalla
-        all_sprites.draw(screen)
+        if(not game_over):
+            all_sprites.update()
+            #dibujo en la pantalla
+            all_sprites.draw(screen)
+        #Texto
+        show_text("Energia: ", player.hp,0,60,140,60)
+        show_text("Misiles: ", player.misiles, 0,120,140,120)
+        show_text("Nivel: ", player.nivel,0,180,140,180)
+        show_text("Puntaje: ", player.puntaje,0,240,140,240)
         pygame.display.flip()
 
     #Bucle principal.....................................................................................\
@@ -333,14 +337,8 @@ def game():
                 tank_red = Tank()    
                 tank_red_list.add(tank_red)
                 all_sprites.add(tank_red)
-        #Texto
-        show_text("Energia: ", player.hp,0,60,140,60)
-        show_text("Misiles: ", player.misiles, 0,120,140,120)
-        show_text("Nivel: ", player.nivel,0,180,140,180)
-        show_text("Puntaje: ", player.puntaje,0,240,140,240)
         #actualiza la pantalla
         pygame.display.flip()
-        
         fps.tick(60) 
         
 
