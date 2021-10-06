@@ -89,7 +89,7 @@ class Tank(pygame.sprite.Sprite):
         self.image = pygame.image.load("assets/tank_red.png").convert_alpha()
         self.rect = self.image.get_rect()
         self.rect.x = random.randrange(200 , 700)
-        self.rect.y = random.randrange(height - 350)
+        self.rect.y = random.randrange(-350, 0)
         self.speed_y = 1
 
    #funcionalidad para que se vuelva a generar un tanque al salir del mapa
