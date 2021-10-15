@@ -1,4 +1,6 @@
 import pygame, time, sys, random
+from pygame import QUIT
+from pygame.mixer import pre_init
 pygame.init()
 pygame.mixer.init()
 width = 1000
@@ -10,14 +12,22 @@ background = pygame.image.load("assets/background_2.png")
 #Crea la ventana/fps!!!
 screen = pygame.display.set_mode((width,height))
 fps = pygame.time.Clock()
-#carga de efectos de sonido
+#creación de canales de música
+game_channel = pygame.mixer.Channel(0)
+options_channel = pygame.mixer.Channel(1)
+main_channel = pygame.mixer.Channel(2)
+gameover_channel = pygame.mixer.Channel(3)
+#carga de efectos de sonido y música
+game_channel_sound = pygame.mixer.Sound("sound/song.ogg")
+options_channel_sound = pygame.mixer.Sound("sound/options.ogg")
+main_channel_sound = pygame.mixer.Sound("sound/main.ogg")
+gameover_channel_sound = pygame.mixer.Sound("sound/gameover.ogg")
 engine = pygame.mixer.Sound("sound/engine.ogg")
 explosion = pygame.mixer.Sound("sound/explosion.ogg")
 shoot_sound = pygame.mixer.Sound("sound/shoot.ogg")
 iron_sound = pygame.mixer.Sound("sound/iron_sound.ogg")
-music = pygame.mixer.music.load('sound/song.ogg')
-#Repite la música
-pygame.mixer.music.play(-1)
+sonidoMenu = pygame.mixer.Sound('sound/selection.ogg')
+
 #Fuente y tamaño de las letras
 font = pygame.font.SysFont(None, 40)
 font2 = pygame.font.SysFont(None, 100)
@@ -104,17 +114,115 @@ class Tank_green(Tank):
         super().__init__()
         self.image = pygame.image.load("assets/tank_green.png").convert_alpha()
 
+def simple_show_text(string,position1, position2):
+    text1 = font.render(string, True, (173,255,47))
+    screen.blit(text1, (position1,position2))
+
 def show_text(string, int, position1, position2, position3, position4):
     text1 = font.render(string, True, (173,255,47))
     screen.blit(text1, (position1,position2))
     text2 = font.render(str(int), True, (173,255,47))
     screen.blit(text2, (position3,position4))
+
 def gameOver():
+    gameover_channel.play(gameover_channel_sound, loops=0, fade_ms=0)
     text1 = font2.render("GAME OVER", True, (255,0,0))
     text_rect = text1.get_rect(center=(width/2, height/2))
     screen.blit(text1, text_rect)
+    game_channel.stop()
 
-#clases.................................................................................................\
+#Menu del juego....................................................................../
+"""Texto en la mitad mas 50 para arriba y 50 para abajo.Posicion de los cuadrados que marcan que
+opcion estas eligiendo va a ser lo mismo, para tener una referencia y despues un event
+que vaya manejando la variable
+width = 1000
+height = 700"""
+def menu():
+    main_channel.play(main_channel_sound, loops=-1, fade_ms=100)
+    sigueEnMenu= True
+    cuadradoEnX = int(width/2)
+    cuadradoEnY = int((height/2)-50)
+    jugar=int((height/2)-50)
+    salir= int((height/2)+50)
+    negro= pygame.image.load("assets/main.png")
+    #cuadrado = pygame.Rect(cuadradoEnX, cuadradoEnY, 150, 30)
+    while(sigueEnMenu):
+        pygame.draw.rect(screen, (255, 0, 0), (cuadradoEnX, cuadradoEnY, 150, 30), 1)
+        # Texto
+        simple_show_text("Jugar", width/2, (height/2)-50)
+        simple_show_text("Opciones", width/2, (height/2))
+        simple_show_text("Salir", width/2, (height/2)+50)
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    sonidoMenu.play()
+                    pygame.quit()
+                if event.key == pygame.K_UP:
+                    sonidoMenu.play()
+                    cuadradoEnY -= 50
+                    if cuadradoEnY < jugar:
+                        cuadradoEnY=((height/2)+50)
+                if event.key == pygame.K_DOWN:
+                    sonidoMenu.play()
+                    cuadradoEnY = cuadradoEnY + 50
+                    if cuadradoEnY > salir:
+                        cuadradoEnY = ((height/2)-50)
+                if event.key == pygame.K_RETURN:
+                    sonidoMenu.play()
+                    if cuadradoEnY == ((height/2)-50) :
+                        main_channel.stop()
+                        game_channel.play(game_channel_sound, loops=-1, fade_ms=100)
+                        sigueEnMenu = False
+                    elif cuadradoEnY == ((height / 2)):
+                        opciones(cuadradoEnX,cuadradoEnY)
+                    elif cuadradoEnY == ((height / 2)+50):
+                        pygame.quit()
+        # actualiza la pantalla
+        pygame.display.update()
+        screen.blit(negro, (0,0))
+def opciones(cuadradoEnX,cuadradoEnY):
+    sigueEnOpciones=True
+    opcionesFondo = pygame.image.load("assets/options.png")
+    main_channel.stop()
+    options_channel.play(options_channel_sound, loops=-1, fade_ms=100)
+    Video = int((height / 2) - 50)
+    Atras = int((height / 2) + 50)
+    while (sigueEnOpciones):
+        pygame.draw.rect(screen, (255, 0, 0), (cuadradoEnX, cuadradoEnY, 150, 30), 1)
+        # Texto
+        simple_show_text("Video", width / 2, (height / 2) - 50)
+        simple_show_text("Sonido", width / 2, (height / 2))
+        simple_show_text("Atrás", width / 2, (height / 2) + 50)
+
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    sonidoMenu.play()
+                    pygame.quit()
+                if event.key == pygame.K_UP:
+                    sonidoMenu.play()
+                    cuadradoEnY -= 50
+                    if cuadradoEnY < Video:
+                        cuadradoEnY = ((height / 2) + 50)
+                if event.key == pygame.K_DOWN:
+                    sonidoMenu.play()
+                    cuadradoEnY = cuadradoEnY + 50
+                    if cuadradoEnY > Atras:
+                        cuadradoEnY = ((height / 2) - 50)
+                if event.key == pygame.K_RETURN:
+                    sonidoMenu.play()
+                    if cuadradoEnY == ((height / 2) - 50):
+                        sigueEnOpciones = True
+                    elif cuadradoEnY == ((height / 2)):
+                        sigueEnOpciones = True
+                    elif cuadradoEnY == ((height / 2) + 50):
+                        options_channel.stop()
+                        main_channel.play(main_channel_sound, loops=-1, fade_ms=100)
+                        sigueEnOpciones = False
+        # actualiza la pantalla
+        pygame.display.update()
+        screen.blit(opcionesFondo, (0,0))
 
 def init():
     global tank_red_list
@@ -152,6 +260,7 @@ def init():
     game_over = False
 
 #Bucle principal...................................................................../
+enProceso = True
 def game():
     player.hp=200
     player.nivel=1
@@ -170,6 +279,8 @@ def game():
         for event in pygame.event.get():
             #Eventos teclado
             if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
                 # tanque rojo!!!
                 if event.key == pygame.K_LEFT:
                     player.speed_x = -3
@@ -301,6 +412,7 @@ def game():
                     game_over=True
                     if(game_over):
                        gameOver()
+
         #todos los metodos update de los objetos de esta lista funcionando
         if(not game_over):
             all_sprites.update()
@@ -341,9 +453,8 @@ def game():
         pygame.display.flip()
         fps.tick(60) 
         
-
-while(True):
-    pygame.time.wait(3000)
+while(enProceso):
+    pygame.time.wait(3200)
     init()
+    menu()
     game()
-
