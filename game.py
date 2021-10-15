@@ -419,7 +419,7 @@ def game():
             #dibujo en la pantalla
             all_sprites.draw(screen)
         #Texto
-        show_text("Energia: ", player.hp,0,60,140,60)
+        show_text("Energía: ", player.hp,0,60,140,60)
         show_text("Misiles: ", player.misiles, 0,120,140,120)
         show_text("Nivel: ", player.nivel,0,180,140,180)
         show_text("Puntaje: ", player.puntaje,0,240,140,240)
