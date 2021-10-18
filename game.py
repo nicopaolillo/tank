@@ -47,7 +47,7 @@ class Player(pygame.sprite.Sprite):
         self.nivel=1
         self.misiles=0
         self.puntaje=0  
-        self.apoyo=3
+        self.apoyo=1
 
 class Death(pygame.sprite.Sprite):
     def __init__(self,x,y):
@@ -107,9 +107,15 @@ class ApoyoAereo(pygame.sprite.Sprite):
         self.image = pygame.image.load("assets/avion.png").convert_alpha()
         self.image.set_colorkey(white)
         self.rect = self.image.get_rect()
-  
+        self.height_y_constraint = height
+
+    def destroy(self):
+        if self.rect.y <= -200 or self.rect.y >= self.height_y_constraint + 50:
+            self.kill()
+
     def update(self):
-        self.rect.y -= 9    
+        self.rect.y -= 9  
+        self.destroy()  
 
 class Tank(pygame.sprite.Sprite):
     def __init__(self):
@@ -299,7 +305,7 @@ def game():
     player.hp=200
     player.nivel=1
     player.misiles=3
-    player.apoyo=3
+    player.apoyo=1
     misilNuevo=0
     player.puntaje=0
     ultimoMisil=0   
@@ -390,7 +396,7 @@ def game():
             screen.blit(background,(0,y_relativa-background.get_rect().height))
             if y_relativa < height: 
                 screen.blit(background,(0,y_relativa))
-            y += 1*2.5
+            y += 1*(2.8)
 
             #actualización del movimiento del tanque rojo
             player.rect.x += player.speed_x
@@ -398,10 +404,10 @@ def game():
         
             #actualización del movimiento vertical de todos los tanques
             for i in tank_red_list:
-                i.rect.y += i.speed_y*3.5
+                i.rect.y += i.speed_y*(3.8)
         
             for i in tank_green_list:
-                i.rect.y += i.speed_y*3.5
+                i.rect.y += i.speed_y*(3.8)
 
             #colisiones del disparo con los tanques rojos
             for i in shoot_list:
@@ -433,7 +439,7 @@ def game():
                     death.animate()
                     all_sprites.add(death)
                     player.puntaje=player.puntaje+300
-                if apoyo.rect.y < -10:
+                if apoyo.rect.y < -200:
                     all_sprites.remove(apoyo)
                     apoyo_list.remove(apoyo)
 
@@ -512,7 +518,7 @@ def game():
             completado=True
             player.hp=player.hp+100
             player.misiles=player.misiles+3
-            player.apoyo=player.apoyo+3
+            player.apoyo=player.apoyo+1
     #Cada vez que se incrementa el nivel se crean más tanques
         if(player.nivel>1 and completado):
             completado=False
