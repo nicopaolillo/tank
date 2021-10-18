@@ -90,9 +90,14 @@ class Shooting(pygame.sprite.Sprite):
         self.image = pygame.image.load("assets/bullet.png").convert()
         self.image.set_colorkey(white)
         self.rect = self.image.get_rect()
-  
+        self.height_y_constraint = height
+    def destroy(self):
+        if self.rect.y <= -50 or self.rect.y >= self.height_y_constraint + 50:
+            self.kill()
+
     def update(self):
-        self.rect.y -= 3    
+        self.rect.y -= 3   
+        self.destroy() 
         
 class Tank(pygame.sprite.Sprite):
     def __init__(self):
@@ -424,8 +429,6 @@ def game():
         show_text("Nivel: ", player.nivel,0,180,140,180)
         show_text("Puntaje: ", player.puntaje,0,240,140,240)
         pygame.display.flip()
-
-    #Bucle principal.....................................................................................\
 
     #Los misiles se incrementan cada 3 segundos
         if(tiempoTranscurrido-misilNuevo>3):
