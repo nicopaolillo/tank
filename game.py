@@ -97,7 +97,7 @@ class Shooting(pygame.sprite.Sprite):
             self.kill()
 
     def update(self):
-        self.rect.y -= 3   
+        self.rect.y -= 10   
         self.destroy() 
 
 #Avion que surge de la parte inferior de la pantalla y destrulle a los tanques por debajo
