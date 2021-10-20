@@ -74,12 +74,18 @@ class Death(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x-30
         self.rect.y = y-30
+        self.animationTime = 20
+        self.time = pygame.time.get_ticks()
+
     def animate(self):
         self.is_animating = True
     
     def update(self):
-        if self.is_animating == True:
-            self.current_sprite+=1
+        ahora = pygame.time.get_ticks()
+        if ahora - self.time > self.animationTime:
+            self.time = ahora
+            if self.is_animating == True:
+                self.current_sprite+=1
             if self.current_sprite >= len(self.sprites):
                 self.current_sprite=-1
                 self.is_animating = False
