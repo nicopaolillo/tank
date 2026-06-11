@@ -8,6 +8,8 @@ from entities.Death import Death
 from entities.AirSupport import AirSupport
 from entities.Shooting import Shooting
 
+from resources.Hud import Hud
+
 pygame.init()
 pygame.mixer.init()
 width = 1000
@@ -90,7 +92,7 @@ def menu():
     while(sigueEnMenu):
         pygame.draw.rect(screen, (255, 0, 0), (cuadradoEnX, cuadradoEnY, 150, 30), 1)
         # Texto
-        simple_show_text("Jugar", width/2, (height/2)-50)
+        Hud.simpleShowText(screen,font,"Jugar",width / 2,(height / 2) - 50)
         simple_show_text("Opciones", width/2, (height/2))
         simple_show_text("Salir", width/2, (height/2)+50)
 
@@ -230,7 +232,7 @@ def game():
                     pygame.quit()
                 if event.key == pygame.K_p:
                     pause=not pause
-                    Pause(screen)
+                    Hud.pause(screen, font, font2, width, height)
                 # tanque rojo!!!
                 if event.key == pygame.K_LEFT:
                     player.speed_x = -3
@@ -400,7 +402,7 @@ def game():
                 #dibujo en la pantalla
                 all_sprites.draw(screen)
             #Texto
-            show_text("Energía: ", player.hp,0,60,140,60)
+            Hud.showText(screen,font,"Energía: ",player.hp, 0,60,140,60)
             show_text("Misiles: ", player.misiles, 0,120,140,120)
             show_text("Nivel: ", player.nivel,0,180,140,180)
             show_text("Puntaje: ", player.puntaje,0,240,140,240)
