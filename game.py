@@ -169,7 +169,7 @@ def opciones(cuadradoEnX,cuadradoEnY):
         screen.blit(opcionesFondo, (0,0))
 
 
-
+#Extracciones de game()
 def handlePlayerBounds(player, height):
 
     if player.rect.right > 800:
@@ -184,6 +184,65 @@ def handlePlayerBounds(player, height):
     if player.rect.bottom > height:
         player.rect.bottom = height
 
+def updateEnemyMovement(tank_red_list, tank_green_list):
+
+    for tank in tank_red_list:
+        tank.rect.y += tank.speed_y * 3.8
+
+    for tank in tank_green_list:
+        tank.rect.y += tank.speed_y * 3.8
+
+def rechargeMissiles(player, tiempoTranscurrido, misilNuevo):
+
+    if tiempoTranscurrido - misilNuevo > 3:
+        player.misiles += 1
+        misilNuevo = tiempoTranscurrido
+
+    return misilNuevo
+
+def checkLevelCompleted(
+        player,
+        tank_red_list,
+        tank_green_list):
+
+    if len(tank_green_list) == 0 and len(tank_red_list) == 0:
+
+        player.nivel += 1
+        player.hp += 100
+        player.misiles += 3
+        player.apoyo += 1
+
+        return True
+
+    return False
+
+def spawnNextLevel(
+        player,
+        completado,
+        tank_green_list,
+        tank_red_list,
+        all_sprites):
+
+    if player.nivel > 1 and completado:
+
+        completado = False
+
+        for _ in range(player.nivel + 2):
+            tank_green = Tank_green()
+            tank_green_list.add(tank_green)
+            all_sprites.add(tank_green)
+
+        for _ in range(player.nivel + 4):
+            tank_red = Tank()
+            tank_red_list.add(tank_red)
+            all_sprites.add(tank_red)
+
+    return completado
+
+def updatePlayerMovement(player):
+
+    player.rect.x += player.speed_x
+    player.rect.y += player.speed_y
 
 #Bucle principal...................................................................../
 enProceso = True
@@ -289,15 +348,10 @@ def game():
             y += 1*(2.8)
 
             #actualización del movimiento del tanque rojo
-            player.rect.x += player.speed_x
-            player.rect.y += player.speed_y
+            updatePlayerMovement(player)
         
             #actualización del movimiento vertical de todos los tanques
-            for i in tank_red_list:
-                i.rect.y += i.speed_y*(3.8)
-        
-            for i in tank_green_list:
-                i.rect.y += i.speed_y*(3.8)
+            updateEnemyMovement( tank_red_list,tank_green_list)
 
             #colisiones del disparo con los tanques rojos
             for i in shoot_list:
@@ -392,35 +446,21 @@ def game():
             show_text("Puntaje: ", player.puntaje,0,240,140,240)
             show_text("Apoyos: ", player.apoyo,0,300,140,300)
             pygame.display.flip()
-        
-            
 
     #Bucle principal.....................................................................................\
 
     #Los misiles se incrementan cada 3 segundos
-        if(tiempoTranscurrido-misilNuevo>3):
-            player.misiles=player.misiles+1
-            misilNuevo=tiempoTranscurrido
+        misilNuevo = rechargeMissiles(player,tiempoTranscurrido,misilNuevo)
+
     #Cuando se eliminen todos los tanques se incrementa el nivel 
     #se hace un bonus de misiles,energia y apoyos.
-        if(len(tank_green_list)==0 and len(tank_red_list)==0):
-            player.nivel=player.nivel+1
-            completado=True
-            player.hp=player.hp+100
-            player.misiles=player.misiles+3
-            player.apoyo=player.apoyo+1
+        if checkLevelCompleted(player,tank_red_list,tank_green_list): 
+            completado = True
+
     #Cada vez que se incrementa el nivel se crean más tanques
-        if(player.nivel>1 and completado):
-            completado=False
-            for i in range(player.nivel+2):
-                tank_green = Tank_green()
-                tank_green_list.add(tank_green)
-                all_sprites.add(tank_green)
-            for i in range(player.nivel+4):
-                tank_red = Tank()    
-                tank_red_list.add(tank_red)
-                all_sprites.add(tank_red)
-        #actualiza la pantalla
+        completado = spawnNextLevel(player,completado,tank_green_list,tank_red_list,all_sprites)
+            
+    #actualiza la pantalla
         pygame.display.flip()
         fps.tick(60) 
         
