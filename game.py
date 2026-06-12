@@ -169,6 +169,22 @@ def opciones(cuadradoEnX,cuadradoEnY):
         screen.blit(opcionesFondo, (0,0))
 
 
+
+def handlePlayerBounds(player, height):
+
+    if player.rect.right > 800:
+        player.rect.right = 800
+
+    if player.rect.left < 200:
+        player.rect.left = 200
+
+    if player.rect.top < 0:
+        player.rect.top = 0
+
+    if player.rect.bottom > height:
+        player.rect.bottom = height
+
+
 #Bucle principal...................................................................../
 enProceso = True
 def game():
@@ -261,14 +277,7 @@ def game():
                     player.speed_y = 0    
                 
     #control del jugador dentro del escenario
-        if player.rect.right > 800:
-            player.rect.right = 800
-        if player.rect.left < 200:
-            player.rect.left = 200  
-        if player.rect.top < 0:
-            player.rect.top = 0
-        if player.rect.bottom > height:
-            player.rect.bottom = height    
+        handlePlayerBounds(player, height)    
 
         #fondo y movimiento de la imagen de fondo
         #se encapsula todas las actualizaciones de sprites condicionados por el estado de "pause"
