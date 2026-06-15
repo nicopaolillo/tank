@@ -244,6 +244,161 @@ def updatePlayerMovement(player):
     player.rect.x += player.speed_x
     player.rect.y += player.speed_y
 
+def handleRedTankCrash(
+        player,
+        tank_red_list,
+        all_sprites,
+        explosion):
+
+    crash_list = pygame.sprite.spritecollide(
+        player,
+        tank_red_list,
+        True)
+
+    if len(crash_list) == 1:
+        explosion.play()
+
+    for tank in crash_list:
+
+        player.hp -= 20
+
+        death = Death(
+            player.rect.x,
+            player.rect.y)
+
+        death.animate()
+
+        all_sprites.add(death)
+
+    return player.hp <= 0
+
+def handleGreenTankCollision(
+        player,
+        tank_green_list,
+        all_sprites):
+
+    game_over = False
+
+    crash_list = pygame.sprite.spritecollide(
+        player,
+        tank_green_list,
+        True)
+
+    if len(crash_list) == 1:
+        explosion.play()
+
+    for tank in crash_list:
+
+        player.hp -= 40
+
+        death = Death(
+            player.rect.x,
+            player.rect.y)
+
+        death.animate()
+        all_sprites.add(death)
+
+        if player.hp <= 0:
+
+            all_sprites.remove(player)
+            game_over = True
+            gameOver()
+
+    return game_over
+
+def handleRedTankShots(
+        shoot_list,
+        tank_red_list,
+        all_sprites,
+        player):
+
+    for shoot in list(shoot_list):
+
+        shoot_hits_list = pygame.sprite.spritecollide(
+            shoot,
+            tank_red_list,
+            True)
+
+        for tank in shoot_hits_list:
+
+            all_sprites.remove(shoot)
+            shoot_list.remove(shoot)
+
+            explosion.play()
+
+            death = Death(
+                tank.rect.x,
+                tank.rect.y)
+
+            death.animate()
+
+            all_sprites.add(death)
+
+            player.puntaje += 200
+
+        if shoot.rect.y < -10:
+
+            if shoot in all_sprites:
+             all_sprites.remove(shoot)
+
+            if shoot in shoot_list:
+             shoot_list.remove(shoot)
+
+def handleAirSupportCollisions(
+        apoyo_list,
+        tank_red_list,
+        tank_green_list,
+        all_sprites,
+        player):
+
+    for apoyo in list(apoyo_list):
+
+        apoyo_hits_list = pygame.sprite.spritecollide(
+            apoyo,
+            tank_red_list,
+            True)
+
+        apoyo_hits_list2 = pygame.sprite.spritecollide(
+            apoyo,
+            tank_green_list,
+            True)
+
+        for tank in apoyo_hits_list:
+
+            explosion.play()
+
+            death = Death(
+                tank.rect.x,
+                tank.rect.y)
+
+            death.animate()
+
+            all_sprites.add(death)
+
+            player.puntaje += 200
+
+        for tank in apoyo_hits_list2:
+
+            explosion.play()
+
+            death = Death(
+                tank.rect.x,
+                tank.rect.y)
+
+            death.animate()
+
+            all_sprites.add(death)
+
+            player.puntaje += 300
+
+        if apoyo.rect.y < -200:
+
+            if apoyo in all_sprites:
+                all_sprites.remove(apoyo)
+
+            if apoyo in apoyo_list:
+                apoyo_list.remove(apoyo)
+
 #Bucle principal...................................................................../
 enProceso = True
 def game():
@@ -354,41 +509,13 @@ def game():
             updateEnemyMovement( tank_red_list,tank_green_list)
 
             #colisiones del disparo con los tanques rojos
-            for i in shoot_list:
-                shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_red_list,True)
-                for i in shoot_hits_list:
-                    all_sprites.remove(shoot)
-                    shoot_list.remove(shoot)
-                    explosion.play() 
-                    death = Death(i.rect.x,i.rect.y)
-                    death.animate()
-                    all_sprites.add(death)
-                    player.puntaje=player.puntaje+200
-                if shoot.rect.y < -10:
-                    all_sprites.remove(shoot)
-                    shoot_list.remove(shoot)
+            handleRedTankShots(shoot_list,tank_red_list,all_sprites,player)
+
             #Colisiones del apoyo con tanques
-            for i in apoyo_list: 
-                apoyo_hits_list = pygame.sprite.spritecollide(apoyo,tank_red_list,True)
-                apoyo_hits_list2 = pygame.sprite.spritecollide(apoyo,tank_green_list,True)
-                for i in apoyo_hits_list:
-                    explosion.play() 
-                    death = Death(i.rect.x,i.rect.y)
-                    death.animate()
-                    all_sprites.add(death)
-                    player.puntaje=player.puntaje+200
-                for i in apoyo_hits_list2:
-                    explosion.play() 
-                    death = Death(i.rect.x,i.rect.y)
-                    death.animate()
-                    all_sprites.add(death)
-                    player.puntaje=player.puntaje+300
-                if apoyo.rect.y < -200:
-                    all_sprites.remove(apoyo)
-                    apoyo_list.remove(apoyo)
+            handleAirSupportCollisions(apoyo_list,tank_red_list,tank_green_list,all_sprites,player) 
 
             #colisiones del disparo con las tanques verdes
-            for i in shoot_list:
+            for shoot in list(shoot_list):
                 shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_green_list,len(tank_red_list)==0)
                 for i in shoot_hits_list:
                     all_sprites.remove(shoot)
@@ -402,37 +529,14 @@ def game():
                         all_sprites.add(death)
                         explosion.play() 
             
-
             #colisión del player con los tanques
-            for i in tank_red_list:
-                crash_list = pygame.sprite.spritecollide(player,tank_red_list,True)  
-                if len(crash_list) == 1:
-                    explosion.play()     
-                for i in crash_list:   
-                    player.hp=player.hp-20         
-                    death = Death(player.rect.x,player.rect.y)
-                    death.animate()
-                    all_sprites.add(death)
-                    if(player.hp<=0): 
-                        all_sprites.remove(player)
-                        game_over=True
-                        if(game_over):
-                            gameOver()
+            if handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
+             all_sprites.remove(player)
+             game_over = True
+             gameOver()
                 
-            for i in tank_green_list:   #revisar como optimizar las dos listas!!!
-                crash_list = pygame.sprite.spritecollide(player,tank_green_list,True)  
-                if len(crash_list) == 1:
-                    explosion.play()     
-                for i in crash_list: 
-                    player.hp=player.hp-40 
-                    death = Death(player.rect.x,player.rect.y)
-                    death.animate()
-                    all_sprites.add(death)
-                    if(player.hp<=0):   
-                        all_sprites.remove(player)
-                        game_over=True
-                        if(game_over):
-                            gameOver()
+            if handleGreenTankCollision(player,tank_green_list,all_sprites):
+                game_over = True
 
             #todos los metodos update de los objetos de esta lista funcionando
             if(not game_over):
