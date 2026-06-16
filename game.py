@@ -200,10 +200,7 @@ def rechargeMissiles(player, tiempoTranscurrido, misilNuevo):
 
     return misilNuevo
 
-def checkLevelCompleted(
-        player,
-        tank_red_list,
-        tank_green_list):
+def checkLevelCompleted(player,tank_red_list,tank_green_list):
 
     if len(tank_green_list) == 0 and len(tank_red_list) == 0:
 
@@ -216,12 +213,7 @@ def checkLevelCompleted(
 
     return False
 
-def spawnNextLevel(
-        player,
-        completado,
-        tank_green_list,
-        tank_red_list,
-        all_sprites):
+def spawnNextLevel(player,completado,tank_green_list,tank_red_list,all_sprites):
 
     if player.nivel > 1 and completado:
 
@@ -244,11 +236,7 @@ def updatePlayerMovement(player):
     player.rect.x += player.speed_x
     player.rect.y += player.speed_y
 
-def handleRedTankCrash(
-        player,
-        tank_red_list,
-        all_sprites,
-        explosion):
+def handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
 
     crash_list = pygame.sprite.spritecollide(
         player,
@@ -262,9 +250,7 @@ def handleRedTankCrash(
 
         player.hp -= 20
 
-        death = Death(
-            player.rect.x,
-            player.rect.y)
+        death = Death(player.rect.x,player.rect.y)
 
         death.animate()
 
@@ -272,17 +258,11 @@ def handleRedTankCrash(
 
     return player.hp <= 0
 
-def handleGreenTankCollision(
-        player,
-        tank_green_list,
-        all_sprites):
+def handleGreenTankCollision(player,tank_green_list,all_sprites):
 
     game_over = False
 
-    crash_list = pygame.sprite.spritecollide(
-        player,
-        tank_green_list,
-        True)
+    crash_list = pygame.sprite.spritecollide(player,tank_green_list,True)
 
     if len(crash_list) == 1:
         explosion.play()
@@ -291,9 +271,7 @@ def handleGreenTankCollision(
 
         player.hp -= 40
 
-        death = Death(
-            player.rect.x,
-            player.rect.y)
+        death = Death(player.rect.x,player.rect.y)
 
         death.animate()
         all_sprites.add(death)
@@ -306,18 +284,11 @@ def handleGreenTankCollision(
 
     return game_over
 
-def handleRedTankShots(
-        shoot_list,
-        tank_red_list,
-        all_sprites,
-        player):
+def handleRedTankShots(shoot_list,tank_red_list,all_sprites,player):
 
     for shoot in list(shoot_list):
 
-        shoot_hits_list = pygame.sprite.spritecollide(
-            shoot,
-            tank_red_list,
-            True)
+        shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_red_list,True)
 
         for tank in shoot_hits_list:
 
@@ -326,9 +297,7 @@ def handleRedTankShots(
 
             explosion.play()
 
-            death = Death(
-                tank.rect.x,
-                tank.rect.y)
+            death = Death(tank.rect.x,tank.rect.y)
 
             death.animate()
 
@@ -344,32 +313,19 @@ def handleRedTankShots(
             if shoot in shoot_list:
              shoot_list.remove(shoot)
 
-def handleAirSupportCollisions(
-        apoyo_list,
-        tank_red_list,
-        tank_green_list,
-        all_sprites,
-        player):
+def handleAirSupportCollisions(apoyo_list,tank_red_list,tank_green_list,all_sprites,player):
 
     for apoyo in list(apoyo_list):
 
-        apoyo_hits_list = pygame.sprite.spritecollide(
-            apoyo,
-            tank_red_list,
-            True)
+        apoyo_hits_list = pygame.sprite.spritecollide(apoyo,tank_red_list,True)
 
-        apoyo_hits_list2 = pygame.sprite.spritecollide(
-            apoyo,
-            tank_green_list,
-            True)
+        apoyo_hits_list2 = pygame.sprite.spritecollide(apoyo,tank_green_list,True)
 
         for tank in apoyo_hits_list:
 
             explosion.play()
 
-            death = Death(
-                tank.rect.x,
-                tank.rect.y)
+            death = Death(tank.rect.x,tank.rect.y)
 
             death.animate()
 
@@ -381,9 +337,7 @@ def handleAirSupportCollisions(
 
             explosion.play()
 
-            death = Death(
-                tank.rect.x,
-                tank.rect.y)
+            death = Death(tank.rect.x,tank.rect.y)
 
             death.animate()
 
@@ -398,6 +352,102 @@ def handleAirSupportCollisions(
 
             if apoyo in apoyo_list:
                 apoyo_list.remove(apoyo)
+
+def handleGreenTankShots(shoot_list,tank_green_list,tank_red_list,all_sprites,player):
+
+    for shoot in list(shoot_list):
+
+        shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_green_list,len(tank_red_list) == 0)
+
+        for tank in shoot_hits_list:
+
+            if shoot in all_sprites:
+                all_sprites.remove(shoot)
+
+            if shoot in shoot_list:
+                shoot_list.remove(shoot)
+
+            if len(tank_red_list) > 0:
+
+                iron_sound.play()
+
+            else:
+
+                player.puntaje += 500
+
+                death = Death(tank.rect.x,tank.rect.y)
+
+                death.animate()
+
+                all_sprites.add(death)
+
+                explosion.play()
+
+def renderGame(player,all_sprites,game_over):
+
+    if not game_over:
+
+        all_sprites.update()
+        all_sprites.draw(screen)
+
+    Hud.showText(screen,font,"Energía: ",player.hp,0,60,140,60)
+
+    show_text("Misiles: ",player.misiles,0,120,140,120)
+
+    show_text("Nivel: ",player.nivel,0,180,140,180)
+
+    show_text("Puntaje: ",player.puntaje,0,240,140,240)
+
+    show_text("Apoyos: ",player.apoyo,0,300,140,300)
+
+    pygame.display.flip()
+
+def renderBackground(y):
+
+    y_relativa = y % background.get_rect().height
+
+    screen.blit(
+        background,
+        (0, y_relativa - background.get_rect().height)
+    )
+
+    if y_relativa < height:
+
+        screen.blit(
+            background,
+            (0, y_relativa)
+        )
+
+    y += 1 * 2.8
+
+    return y
+
+def handlePlayerCollisions(player,tank_red_list,tank_green_list,all_sprites):
+
+    if handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
+
+        all_sprites.remove(player)
+        gameOver()
+
+        return True
+
+    if handleGreenTankCollision(player,tank_green_list,all_sprites):
+
+        return True
+
+    return False
+
+def handleGameProgression(player,tiempoTranscurrido,misilNuevo,completado,tank_green_list,tank_red_list,all_sprites):
+
+    misilNuevo = rechargeMissiles(player,tiempoTranscurrido,misilNuevo)
+
+    if checkLevelCompleted(player,tank_red_list,tank_green_list):
+
+        completado = True
+
+    completado = spawnNextLevel(player,completado,tank_green_list,tank_red_list,all_sprites)
+
+    return misilNuevo, completado
 
 #Bucle principal...................................................................../
 enProceso = True
@@ -436,8 +486,10 @@ def game():
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                 if event.key == pygame.K_p:
-                    pause=not pause
-                    Hud.pause(screen, font, font2, width, height)
+                    pause = not pause
+                    if pause:
+                        Hud.pause(screen, font, font2, width, height)
+                        pygame.display.flip()
                 # tanque rojo!!!
                 if event.key == pygame.K_LEFT:
                     player.speed_x = -3
@@ -496,11 +548,8 @@ def game():
         #fondo y movimiento de la imagen de fondo
         #se encapsula todas las actualizaciones de sprites condicionados por el estado de "pause"
         if not pause:
-            y_relativa = y % background.get_rect().height
-            screen.blit(background,(0,y_relativa-background.get_rect().height))
-            if y_relativa < height: 
-                screen.blit(background,(0,y_relativa))
-            y += 1*(2.8)
+            #renderizado del fondo y movimiento del mismo
+            y = renderBackground(y)
 
             #actualización del movimiento del tanque rojo
             updatePlayerMovement(player)
@@ -515,57 +564,21 @@ def game():
             handleAirSupportCollisions(apoyo_list,tank_red_list,tank_green_list,all_sprites,player) 
 
             #colisiones del disparo con las tanques verdes
-            for shoot in list(shoot_list):
-                shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_green_list,len(tank_red_list)==0)
-                for i in shoot_hits_list:
-                    all_sprites.remove(shoot)
-                    shoot_list.remove(shoot)
-                    if(len(tank_red_list)>0):
-                        iron_sound.play()
-                    if(len(tank_red_list)==0):
-                        player.puntaje=player.puntaje+500
-                        death = Death(i.rect.x,i.rect.y)
-                        death.animate()
-                        all_sprites.add(death)
-                        explosion.play() 
+            handleGreenTankShots(shoot_list,tank_green_list,tank_red_list,all_sprites,player)
             
             #colisión del player con los tanques
-            if handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
-             all_sprites.remove(player)
-             game_over = True
-             gameOver()
-                
-            if handleGreenTankCollision(player,tank_green_list,all_sprites):
-                game_over = True
+            game_over = handlePlayerCollisions(player,tank_red_list,tank_green_list,all_sprites)
 
             #todos los metodos update de los objetos de esta lista funcionando
-            if(not game_over):
-                all_sprites.update()
-                #dibujo en la pantalla
-                all_sprites.draw(screen)
-            #Texto
-            Hud.showText(screen,font,"Energía: ",player.hp, 0,60,140,60)
-            show_text("Misiles: ", player.misiles, 0,120,140,120)
-            show_text("Nivel: ", player.nivel,0,180,140,180)
-            show_text("Puntaje: ", player.puntaje,0,240,140,240)
-            show_text("Apoyos: ", player.apoyo,0,300,140,300)
-            pygame.display.flip()
+            renderGame(player,all_sprites,game_over)
+
 
     #Bucle principal.....................................................................................\
 
     #Los misiles se incrementan cada 3 segundos
-        misilNuevo = rechargeMissiles(player,tiempoTranscurrido,misilNuevo)
-
-    #Cuando se eliminen todos los tanques se incrementa el nivel 
-    #se hace un bonus de misiles,energia y apoyos.
-        if checkLevelCompleted(player,tank_red_list,tank_green_list): 
-            completado = True
-
-    #Cada vez que se incrementa el nivel se crean más tanques
-        completado = spawnNextLevel(player,completado,tank_green_list,tank_red_list,all_sprites)
+        misilNuevo, completado = handleGameProgression(player,tiempoTranscurrido,misilNuevo,completado,tank_green_list,tank_red_list,all_sprites)
             
     #actualiza la pantalla
-        pygame.display.flip()
         fps.tick(60) 
         
 while(enProceso):
