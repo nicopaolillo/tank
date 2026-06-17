@@ -449,6 +449,62 @@ def handleGameProgression(player,tiempoTranscurrido,misilNuevo,completado,tank_g
 
     return misilNuevo, completado
 
+
+def handleKeyboardEvents(events, player, all_sprites, apoyo_list, shoot_list, tiempoTranscurrido, misilNuevo, ultimoMisil, pause):
+    for event in events:
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+            elif event.key == pygame.K_p:
+                pause = not pause
+                if pause:
+                    Hud.pause(screen, font, font2, width, height)
+                    pygame.display.flip()
+            elif event.key == pygame.K_LEFT:
+                player.speed_x = -3
+                player.image = pygame.image.load("assets/player_left.png").convert()
+                player.image.set_colorkey(black)
+            elif event.key == pygame.K_RIGHT:
+                player.speed_x = 3
+                player.image = pygame.image.load("assets/player_right.png").convert()
+                player.image.set_colorkey(black)
+            elif event.key == pygame.K_UP:
+                player.speed_y = -3
+                player.image = pygame.image.load("assets/player.png").convert()
+                player.image.set_colorkey(black)
+            elif event.key == pygame.K_DOWN:
+                player.speed_y = 3
+                player.image = pygame.image.load("assets/player_down.png").convert()
+                player.image.set_colorkey(black)
+            elif event.key == pygame.K_q:
+                if player.apoyo > 0:
+                    apoyo = AirSupport()
+                    apoyo.rect.x = player.rect.x + 10
+                    apoyo.rect.y = height
+                    all_sprites.add(apoyo)
+                    apoyo_list.add(apoyo)
+                    player.apoyo -= 1
+            elif event.key == pygame.K_SPACE:
+                if player.misiles > 0:
+                    if int(tiempoTranscurrido) - int(ultimoMisil) > 15:
+                        player.puntaje = player.puntaje - ((int(tiempoTranscurrido) - int(ultimoMisil)) * 300)
+                    shoot = Shooting()
+                    shoot.rect.x = player.rect.x + 10
+                    shoot.rect.y = player.rect.y - 20
+                    all_sprites.add(shoot)
+                    shoot_list.add(shoot)
+                    shoot_sound.play()
+                    player.misiles -= 1
+                    misilNuevo = tiempoTranscurrido
+                    ultimoMisil = tiempoTranscurrido
+        elif event.type == pygame.KEYUP:
+            if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
+                player.speed_x = 0
+            elif event.key in (pygame.K_UP, pygame.K_DOWN):
+                player.speed_y = 0
+
+    return misilNuevo, ultimoMisil, pause
+
 #Bucle principal...................................................................../
 enProceso = True
 def game():
@@ -480,68 +536,19 @@ def game():
     while not game_over :
         if not pause:
             tiempoTranscurrido=int(pygame.time.get_ticks())/500-tiempoFinal
-        for event in pygame.event.get():
-            #Eventos teclado
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                if event.key == pygame.K_p:
-                    pause = not pause
-                    if pause:
-                        Hud.pause(screen, font, font2, width, height)
-                        pygame.display.flip()
-                # tanque rojo!!!
-                if event.key == pygame.K_LEFT:
-                    player.speed_x = -3
-                    player.image = pygame.image.load("assets/player_left.png").convert()
-                    player.image.set_colorkey(black)
-                if event.key == pygame.K_RIGHT: 
-                    player.speed_x = 3
-                    player.image = pygame.image.load("assets/player_right.png").convert()
-                    player.image.set_colorkey(black)
-                if event.key == pygame.K_UP:
-                    player.speed_y = -3
-                    player.image = pygame.image.load("assets/player.png").convert()     
-                    player.image.set_colorkey(black)
-                if event.key == pygame.K_DOWN: 
-                    player.speed_y = 3   
-                    player.image = pygame.image.load("assets/player_down.png").convert()     
-                    player.image.set_colorkey(black)
-                if event.key == pygame.K_q: 
-                    if(player.apoyo>0):
-                            apoyo = AirSupport()   
-                            apoyo.rect.x = player.rect.x +10
-                            apoyo.rect.y = height
-                            all_sprites.add(apoyo)
-                            apoyo_list.add(apoyo)
-                            player.apoyo=player.apoyo-1
+        events = pygame.event.get()
+        misilNuevo, ultimoMisil, pause = handleKeyboardEvents(
+            events,
+            player,
+            all_sprites,
+            apoyo_list,
+            shoot_list,
+            tiempoTranscurrido,
+            misilNuevo,
+            ultimoMisil,
+            pause,
+        )
 
-                if event.key == pygame.K_SPACE:
-                        #creación del disparo
-                        if(player.misiles>0):
-                            if(int(tiempoTranscurrido)-int(ultimoMisil)>15):
-                                player.puntaje=player.puntaje-((int(tiempoTranscurrido)-int(ultimoMisil))*300)
-                            shoot = Shooting()   
-                            shoot.rect.x = player.rect.x +10
-                            shoot.rect.y = player.rect.y -20
-                            all_sprites.add(shoot)
-                            shoot_list.add(shoot)
-                            shoot_sound.play() 
-                            player.misiles=player.misiles-1
-                            misilNuevo=tiempoTranscurrido
-                            ultimoMisil=tiempoTranscurrido
-                            
-            if event.type == pygame.KEYUP:
-                # tanque rojo!!!
-                if event.key == pygame.K_LEFT:
-                    player.speed_x = 0
-                if event.key == pygame.K_RIGHT:
-                    player.speed_x = 0
-                if event.key == pygame.K_UP:
-                    player.speed_y = 0
-                if event.key == pygame.K_DOWN:
-                    player.speed_y = 0    
-                
     #control del jugador dentro del escenario
         handlePlayerBounds(player, height)    
 
@@ -571,7 +578,6 @@ def game():
 
             #todos los metodos update de los objetos de esta lista funcionando
             renderGame(player,all_sprites,game_over)
-
 
     #Bucle principal.....................................................................................\
 
