@@ -4,7 +4,7 @@ import sys
 import pygame
 
 from config.Settings import GameConfig, WIDTH, HEIGHT, RED_TEXT
-from resources.Hud import Hud
+from ui.hud import Hud
 from sences.Scene import Scene
 
 
@@ -73,7 +73,7 @@ class MenuScene(Scene):
 
         for index, label in enumerate(self.items):
             x, y = self.menu_positions[index]
-            Hud.simpleShowText(self.config.screen, self.config.font_small, label, x, y)
+            Hud.simple_show_text(self.config.screen, self.config.font_small, label, x, y)
             if index == self.selection_index:
                 pygame.draw.rect(self.config.screen, RED_TEXT, (x, y, 150, 30), 1)
 

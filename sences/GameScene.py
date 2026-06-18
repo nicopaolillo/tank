@@ -3,10 +3,10 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, TARGET_FPS, BACKGROUND_IMAGE
+from config.Settings import GameConfig, BACKGROUND_IMAGE
 from GameContext import GameContext
 from sences.Scene import Scene
-from resources.Hud import Hud
+from ui.hud import Hud
 from gameplay.player_controller import PlayerController
 from gameplay.enemy_manager import EnemyManager
 from gameplay.collision_manager import CollisionManager
@@ -82,16 +82,7 @@ class GameScene(Scene):
                 self.player_controller.handle_keyup(event)
 
     def _pause_screen(self) -> None:
-        shape_surf = pygame.Surface(pygame.Rect((0, 0, WIDTH, HEIGHT)).size, pygame.SRCALPHA)
-        pygame.draw.rect(shape_surf, (0, 0, 0, 127), shape_surf.get_rect())
-        shape_surf.set_alpha(128)
-        self.config.screen.blit(shape_surf, (0, 0, WIDTH, HEIGHT))
-        text1 = self.config.font_large.render("PAUSA", True, DARK_GREEN_TEXT)
-        text2 = self.config.font_small.render("Pulse p para continuar", True, DARK_GREEN_TEXT)
-        text_rect = text1.get_rect(center=(WIDTH / 2, HEIGHT / 2))
-        text_rect2 = text2.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 50))
-        self.config.screen.blit(text1, text_rect)
-        self.config.screen.blit(text2, text_rect2)
+        Hud.draw_pause_overlay(self.config.screen, self.config.font_small, self.config.font_large, WIDTH, HEIGHT)
 
     def update(self, dt: float) -> None:
         if self.pause or self.game_over:
@@ -179,11 +170,7 @@ class GameScene(Scene):
             self.all_sprites.update()
             self.all_sprites.draw(self.config.screen)
 
-            Hud.showText(self.config.screen, self.config.font_small, "Energía: ", self.player.hp, 0, 60, 140, 60)
-            Hud.showText(self.config.screen, self.config.font_small, "Misiles: ", self.player.misiles, 0, 120, 140, 120)
-            Hud.showText(self.config.screen, self.config.font_small, "Nivel: ", self.player.nivel, 0, 180, 140, 180)
-            Hud.showText(self.config.screen, self.config.font_small, "Puntaje: ", self.player.puntaje, 0, 240, 140, 240)
-            Hud.showText(self.config.screen, self.config.font_small, "Apoyos: ", self.player.apoyo, 0, 300, 140, 300)
+            Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player)
 
             # Debug overlay: show FPS and player position only when toggled
             if self.show_debug:
