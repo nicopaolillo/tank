@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, BACKGROUND_IMAGE
+from config.Settings import GameConfig, BACKGROUND_IMAGE, BACKGROUND_IMAGES
 from GameContext import GameContext
 from entities.ShieldPowerUp import ShieldPowerUp
 from sences.Scene import Scene
@@ -35,12 +35,18 @@ class GameScene(Scene):
         self.apoyo_list = self.context.apoyo_list
         self.crash_list = self.context.crash_list
         self.context.reset_player_state()
-        self.background = pygame.image.load(BACKGROUND_IMAGE).convert()
+        self.background_images = [pygame.image.load(path).convert() for path in BACKGROUND_IMAGES]
+        self.current_background_index = 0
+        self.current_background = self._scale_background(
+        self.background_images[self.current_background_index])
+        next_index = (self.current_background_index + 1) % len(self.background_images)
+        self.next_background = self._scale_background(
+        self.background_images[next_index])
         self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
         self.enemy_manager = EnemyManager(self.all_sprites, self.tank_red_list, self.tank_green_list)
         self.collision_manager = CollisionManager(config, self.player, self.all_sprites, self.shoot_list, self.tank_red_list, self.tank_green_list, self.apoyo_list, self.context.powerup_list)
         self.progression_manager = ProgressionManager(self.player)
-        self.y = 700
+        self.y = 0
         self.game_over = False
         self.pause = False
         self._game_over_shown = False
@@ -108,11 +114,34 @@ class GameScene(Scene):
             self._spawn_shield_powerup()
 
     def _render_background(self, y: float) -> float:
-        y_relativa = y % self.background.get_rect().height
-        self.config.screen.blit(self.background, (0, y_relativa - self.background.get_rect().height))
-        if y_relativa < HEIGHT:
-            self.config.screen.blit(self.background, (0, y_relativa))
-        return y + 1 * 2.8
+
+        current_height = self.current_background.get_height()
+
+        self.config.screen.blit(
+        self.current_background,(0, y - current_height))
+
+        self.config.screen.blit(
+        self.next_background,(0, y))
+        y += 2.8
+
+        if y >= current_height:
+
+            y = 0
+
+            self.current_background_index = (
+            self.current_background_index + 1) % len(self.background_images)
+
+            next_index = (self.current_background_index + 1) % len(self.background_images)
+
+            self.current_background = self._scale_background(
+            self.background_images[self.current_background_index])
+            self.next_background = self._scale_background(
+            self.background_images[next_index])
+
+        return y
+
+    def _scale_background(self, background: pygame.Surface) -> pygame.Surface:
+        return pygame.transform.smoothscale(background, (WIDTH, background.get_height()))
 
     def _spawn_shield_powerup(self) -> None:
         powerup = ShieldPowerUp()

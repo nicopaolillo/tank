@@ -53,6 +53,10 @@ SOUNDS = {
 
 # Asset paths
 BACKGROUND_IMAGE = 'assets/background_2.png'
+BACKGROUND_IMAGES = [
+    'assets/background_road_1.jpeg',
+    'assets/background_bridge_1.png',
+]
 PLAYER_SPRITES = {
     'default': 'assets/player.png',
     'left': 'assets/player_left.png',
