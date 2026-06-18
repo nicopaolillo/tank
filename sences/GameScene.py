@@ -7,28 +7,16 @@ from config.Settings import GameConfig, TARGET_FPS, BACKGROUND_IMAGE
 from GameContext import GameContext
 from sences.Scene import Scene
 from resources.Hud import Hud
-from entities.AirSupport import AirSupport
-from entities.Death import Death
-from entities.Shooting import Shooting
-from entities.Tank import Tank, Tank_green
+from gameplay.player_controller import PlayerController
+from gameplay.enemy_manager import EnemyManager
+from gameplay.collision_manager import CollisionManager
+from gameplay.progression_manager import ProgressionManager
 from config.Settings import (
     WIDTH,
     HEIGHT,
     GREEN_TEXT,
     DARK_GREEN_TEXT,
     RED_TEXT,
-    PLAYER_SPEED,
-    PLAYER_BOUNDS_LEFT,
-    PLAYER_BOUNDS_RIGHT,
-    MISSILE_RECHARGE_TIME,
-    MISSILE_SCORE_PENALTY_PER_SECOND,
-    MISSILE_FIRE_COOLDOWN,
-    TANK_RED_HIT_DAMAGE,
-    TANK_GREEN_HIT_DAMAGE,
-    TANK_RED_KILL_POINTS,
-    TANK_GREEN_KILL_POINTS,
-    AIR_SUPPORT_RED_POINTS,
-    AIR_SUPPORT_GREEN_POINTS,
 )
 
 
@@ -47,17 +35,16 @@ class GameScene(Scene):
         self.crash_list = self.context.crash_list
         self.context.reset_player_state()
         self.background = pygame.image.load(BACKGROUND_IMAGE).convert()
-        self.misilNuevo = 0
-        self.ultimoMisil = 0
+        self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
+        self.enemy_manager = EnemyManager(self.all_sprites, self.tank_red_list, self.tank_green_list)
+        self.collision_manager = CollisionManager(config, self.player, self.all_sprites, self.shoot_list, self.tank_red_list, self.tank_green_list, self.apoyo_list)
+        self.progression_manager = ProgressionManager(self.player)
         self.y = 700
         self.game_over = False
-        self.completado = False
         self.pause = False
         self._game_over_shown = False
         # normalize timing to seconds
         self.tiempo_inicio = pygame.time.get_ticks() / 1000.0
-        self.ultimoMisil = 0.0
-        self.misilNuevo = 0.0
         self.show_debug = False
 
     def on_activate(self) -> None:
@@ -73,6 +60,7 @@ class GameScene(Scene):
             if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
                 self.show_debug = not self.show_debug
                 continue
+
             if event.type == pygame.KEYDOWN:
                 # allow restarting the scene after game over
                 if self.game_over and event.key == pygame.K_r:
@@ -87,47 +75,11 @@ class GameScene(Scene):
                     if self.pause:
                         self._pause_screen()
                         pygame.display.flip()
-                elif event.key == pygame.K_LEFT:
-                    self.player.speed_x = -PLAYER_SPEED
-                    self.player.image = self.config.get_player_sprite('left')
-                elif event.key == pygame.K_RIGHT:
-                    self.player.speed_x = PLAYER_SPEED
-                    self.player.image = self.config.get_player_sprite('right')
-                elif event.key == pygame.K_UP:
-                    self.player.speed_y = -PLAYER_SPEED
-                    self.player.image = self.config.get_player_sprite('default')
-                elif event.key == pygame.K_DOWN:
-                    self.player.speed_y = PLAYER_SPEED
-                    self.player.image = self.config.get_player_sprite('down')
-                elif event.key == pygame.K_q:
-                    if self.player.apoyo > 0:
-                        apoyo = AirSupport()
-                        apoyo.rect.x = self.player.rect.x + 10
-                        apoyo.rect.y = HEIGHT
-                        self.all_sprites.add(apoyo)
-                        self.apoyo_list.add(apoyo)
-                        self.player.apoyo -= 1
-                elif event.key == pygame.K_SPACE:
-                    if self.player.misiles > 0:
-                        # enforce cooldown between missile shots but do not penalize score
-                        tiempo_desde_ultimo = tiempoTranscurrido - self.ultimoMisil
-                        if tiempo_desde_ultimo < MISSILE_FIRE_COOLDOWN:
-                            # Too soon to fire another missile; ignore input
-                            continue
-                        shoot = Shooting()
-                        shoot.rect.x = self.player.rect.x + 10
-                        shoot.rect.y = self.player.rect.y - 20
-                        self.all_sprites.add(shoot)
-                        self.shoot_list.add(shoot)
-                        self.config.get_sound('shoot').play()
-                        self.player.misiles -= 1
-                        self.misilNuevo = tiempoTranscurrido
-                        self.ultimoMisil = tiempoTranscurrido
+                    continue
+
+                self.player_controller.handle_keydown(event, tiempoTranscurrido)
             elif event.type == pygame.KEYUP:
-                if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                    self.player.speed_x = 0
-                elif event.key in (pygame.K_UP, pygame.K_DOWN):
-                    self.player.speed_y = 0
+                self.player_controller.handle_keyup(event)
 
     def _pause_screen(self) -> None:
         shape_surf = pygame.Surface(pygame.Rect((0, 0, WIDTH, HEIGHT)).size, pygame.SRCALPHA)
@@ -145,38 +97,17 @@ class GameScene(Scene):
         if self.pause or self.game_over:
             return
 
-        # apply player movement then clamp to bounds
-        self._update_player_movement()
-        self._handle_player_bounds()
-
-        self._update_enemy_movement()
+        self.player_controller.update()
+        self.player_controller.clamp_bounds()
+        self.enemy_manager.update()
         self.y = self._render_background(self.y)
-        self._handle_red_tank_shots()
-        self._handle_air_support_collisions()
-        self._handle_green_tank_shots()
-        self.game_over = self._handle_player_collisions()
-        self.misilNuevo, self.completado = self._handle_game_progression(pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio)
 
-    def _handle_player_bounds(self) -> None:
-        if self.player.rect.right > PLAYER_BOUNDS_RIGHT:
-            self.player.rect.right = PLAYER_BOUNDS_RIGHT
-        if self.player.rect.left < PLAYER_BOUNDS_LEFT:
-            self.player.rect.left = PLAYER_BOUNDS_LEFT
-        if self.player.rect.top < 0:
-            self.player.rect.top = 0
-        if self.player.rect.bottom > HEIGHT:
-            self.player.rect.bottom = HEIGHT
+        self.collision_manager.handle_red_tank_shots()
+        self.collision_manager.handle_air_support_collisions()
+        self.collision_manager.handle_green_tank_shots()
+        self.game_over = self.collision_manager.handle_player_collisions()
 
-    def _update_enemy_movement(self) -> None:
-        for tank in self.tank_red_list:
-            tank.rect.y += tank.speed_y * 3.8
-        for tank in self.tank_green_list:
-            tank.rect.y += tank.speed_y * 3.8
-
-    def _update_player_movement(self) -> None:
-        # move player according to current speed
-        self.player.rect.x += self.player.speed_x
-        self.player.rect.y += self.player.speed_y
+        self.progression_manager.update(pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio, self.enemy_manager, self.tank_red_list, self.tank_green_list)
 
     def _render_background(self, y: float) -> float:
         y_relativa = y % self.background.get_rect().height
@@ -184,99 +115,6 @@ class GameScene(Scene):
         if y_relativa < HEIGHT:
             self.config.screen.blit(self.background, (0, y_relativa))
         return y + 1 * 2.8
-
-    def _handle_red_tank_shots(self) -> None:
-        for shoot in list(self.shoot_list):
-            shoot_hits_list = pygame.sprite.spritecollide(shoot, self.tank_red_list, True)
-            for tank in shoot_hits_list:
-                if shoot in self.all_sprites:
-                    self.all_sprites.remove(shoot)
-                if shoot in self.shoot_list:
-                    self.shoot_list.remove(shoot)
-                self.config.get_sound('explosion').play()
-                death = Death(tank.rect.x, tank.rect.y)
-                death.animate()
-                self.all_sprites.add(death)
-                self.player.puntaje += TANK_RED_KILL_POINTS
-            if shoot.rect.y < -10:
-                if shoot in self.all_sprites:
-                    self.all_sprites.remove(shoot)
-                if shoot in self.shoot_list:
-                    self.shoot_list.remove(shoot)
-
-    def _handle_air_support_collisions(self) -> None:
-        for apoyo in list(self.apoyo_list):
-            apoyo_hits_list = pygame.sprite.spritecollide(apoyo, self.tank_red_list, True)
-            apoyo_hits_list2 = pygame.sprite.spritecollide(apoyo, self.tank_green_list, True)
-            for tank in apoyo_hits_list:
-                self.config.get_sound('explosion').play()
-                death = Death(tank.rect.x, tank.rect.y)
-                death.animate()
-                self.all_sprites.add(death)
-                self.player.puntaje += AIR_SUPPORT_RED_POINTS
-            for tank in apoyo_hits_list2:
-                self.config.get_sound('explosion').play()
-                death = Death(tank.rect.x, tank.rect.y)
-                death.animate()
-                self.all_sprites.add(death)
-                self.player.puntaje += AIR_SUPPORT_GREEN_POINTS
-            if apoyo.rect.y < -200:
-                if apoyo in self.all_sprites:
-                    self.all_sprites.remove(apoyo)
-                if apoyo in self.apoyo_list:
-                    self.apoyo_list.remove(apoyo)
-
-    def _handle_green_tank_shots(self) -> None:
-        for shoot in list(self.shoot_list):
-            shoot_hits_list = pygame.sprite.spritecollide(shoot, self.tank_green_list, len(self.tank_red_list) == 0)
-            for tank in shoot_hits_list:
-                if shoot in self.all_sprites:
-                    self.all_sprites.remove(shoot)
-                if shoot in self.shoot_list:
-                    self.shoot_list.remove(shoot)
-                if len(self.tank_red_list) > 0:
-                    self.config.get_sound('iron').play()
-                else:
-                    self.player.puntaje += TANK_GREEN_KILL_POINTS
-                    death = Death(tank.rect.x, tank.rect.y)
-                    death.animate()
-                    self.all_sprites.add(death)
-                    self.config.get_sound('explosion').play()
-
-    def _handle_red_tank_crash(self) -> bool:
-        crash_list = pygame.sprite.spritecollide(self.player, self.tank_red_list, True)
-        if len(crash_list) == 1:
-            self.config.get_sound('explosion').play()
-        for tank in crash_list:
-            self.player.hp -= TANK_RED_HIT_DAMAGE
-            death = Death(self.player.rect.x, self.player.rect.y)
-            death.animate()
-            self.all_sprites.add(death)
-        return self.player.hp <= 0
-
-    def _handle_green_tank_collision(self) -> bool:
-        game_over = False
-        crash_list = pygame.sprite.spritecollide(self.player, self.tank_green_list, True)
-        if len(crash_list) == 1:
-            self.config.get_sound('explosion').play()
-        for tank in crash_list:
-            self.player.hp -= TANK_GREEN_HIT_DAMAGE
-            death = Death(self.player.rect.x, self.player.rect.y)
-            death.animate()
-            self.all_sprites.add(death)
-            if self.player.hp <= 0:
-                self.all_sprites.remove(self.player)
-                game_over = True
-        return game_over
-
-    def _handle_player_collisions(self) -> bool:
-        if self._handle_red_tank_crash():
-            self.all_sprites.remove(self.player)
-            self._game_over_screen()
-            return True
-        if self._handle_green_tank_collision():
-            return True
-        return False
 
     def _game_over_screen(self) -> None:
         # Play game over sound and stop game music (only once)
