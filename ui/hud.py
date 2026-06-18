@@ -1,7 +1,7 @@
 import pygame
 
 
-class Hud:
+class HudManager:
 
     @staticmethod
     def simple_show_text(screen: pygame.Surface, font: pygame.font.Font, text: str, x: float, y: float) -> None:
@@ -18,11 +18,11 @@ class Hud:
 
     @staticmethod
     def draw_game_hud(screen: pygame.Surface, font: pygame.font.Font, player) -> None:
-        Hud.show_text(screen, font, "Energía: ", player.hp, 0, 60, 140, 60)
-        Hud.show_text(screen, font, "Misiles: ", player.misiles, 0, 120, 140, 120)
-        Hud.show_text(screen, font, "Nivel: ", player.nivel, 0, 180, 140, 180)
-        Hud.show_text(screen, font, "Puntaje: ", player.puntaje, 0, 240, 140, 240)
-        Hud.show_text(screen, font, "Apoyos: ", player.apoyo, 0, 300, 140, 300)
+        HudManager.show_text(screen, font, "Energía: ", player.hp, 0, 60, 140, 60)
+        HudManager.show_text(screen, font, "Misiles: ", player.misiles, 0, 120, 140, 120)
+        HudManager.show_text(screen, font, "Nivel: ", player.nivel, 0, 180, 140, 180)
+        HudManager.show_text(screen, font, "Puntaje: ", player.puntaje, 0, 240, 140, 240)
+        HudManager.show_text(screen, font, "Apoyos: ", player.apoyo, 0, 300, 140, 300)
 
     @staticmethod
     def draw_pause_overlay(screen: pygame.Surface, font_small: pygame.font.Font, font_large: pygame.font.Font, width: int, height: int) -> None:

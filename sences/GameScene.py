@@ -6,7 +6,7 @@ import pygame
 from config.Settings import GameConfig, BACKGROUND_IMAGE
 from GameContext import GameContext
 from sences.Scene import Scene
-from ui.hud import Hud
+from ui.hud import HudManager as Hud
 from gameplay.player_controller import PlayerController
 from gameplay.enemy_manager import EnemyManager
 from gameplay.collision_manager import CollisionManager

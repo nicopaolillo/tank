@@ -4,7 +4,7 @@ import sys
 import pygame
 
 from config.Settings import GameConfig, WIDTH, HEIGHT, RED_TEXT
-from ui.hud import Hud
+from ui.hud import HudManager as Hud
 from sences.Scene import Scene
 
 
