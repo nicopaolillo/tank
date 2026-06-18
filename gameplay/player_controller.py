@@ -38,6 +38,8 @@ class PlayerController:
             self.player.image = self.config.get_player_sprite("down")
         elif event.key == pygame.K_q and self.player.apoyo > 0:
             self._spawn_support()
+        elif event.key == pygame.K_w:
+            self.player.activate_shield(elapsed_time)
         elif event.key == pygame.K_SPACE and self.player.misiles > 0:
             self._try_shoot(elapsed_time)
 

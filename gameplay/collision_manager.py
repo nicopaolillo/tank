@@ -15,7 +15,7 @@ from entities.Death import Death
 
 class CollisionManager:
 
-    def __init__(self, config, player, all_sprites, shoot_list, tank_red_list, tank_green_list, apoyo_list):
+    def __init__(self, config, player, all_sprites, shoot_list, tank_red_list, tank_green_list, apoyo_list, powerup_list):
         self.config = config
         self.player = player
         self.all_sprites = all_sprites
@@ -23,6 +23,7 @@ class CollisionManager:
         self.tank_red_list = tank_red_list
         self.tank_green_list = tank_green_list
         self.apoyo_list = apoyo_list
+        self.powerup_list = powerup_list
 
     def handle_red_tank_shots(self) -> None:
         for shoot in list(self.shoot_list):
@@ -81,6 +82,16 @@ class CollisionManager:
             return True
         return False
 
+    def handle_powerup_collisions(self) -> None:
+        for powerup in list(self.powerup_list):
+            if pygame.sprite.collide_rect(self.player, powerup):
+                if powerup in self.all_sprites:
+                    self.all_sprites.remove(powerup)
+                if powerup in self.powerup_list:
+                    self.powerup_list.remove(powerup)
+                self.player.shield_inventory += 1
+                self.config.get_sound("select").play()
+
     def _remove_shoot(self, shoot) -> None:
         if shoot in self.all_sprites:
             self.all_sprites.remove(shoot)
@@ -92,6 +103,8 @@ class CollisionManager:
         if crash_list:
             self.config.get_sound("explosion").play()
         for tank in crash_list:
+            if self.player.shield_active:
+                continue
             self.player.hp -= TANK_RED_HIT_DAMAGE
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
@@ -106,6 +119,8 @@ class CollisionManager:
         if crash_list:
             self.config.get_sound("explosion").play()
         for tank in crash_list:
+            if self.player.shield_active:
+                continue
             self.player.hp -= TANK_GREEN_HIT_DAMAGE
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()

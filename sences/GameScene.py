@@ -5,6 +5,7 @@ import pygame
 
 from config.Settings import GameConfig, BACKGROUND_IMAGE
 from GameContext import GameContext
+from entities.ShieldPowerUp import ShieldPowerUp
 from sences.Scene import Scene
 from ui.hud import HudManager as Hud
 from gameplay.player_controller import PlayerController
@@ -37,7 +38,7 @@ class GameScene(Scene):
         self.background = pygame.image.load(BACKGROUND_IMAGE).convert()
         self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
         self.enemy_manager = EnemyManager(self.all_sprites, self.tank_red_list, self.tank_green_list)
-        self.collision_manager = CollisionManager(config, self.player, self.all_sprites, self.shoot_list, self.tank_red_list, self.tank_green_list, self.apoyo_list)
+        self.collision_manager = CollisionManager(config, self.player, self.all_sprites, self.shoot_list, self.tank_red_list, self.tank_green_list, self.apoyo_list, self.context.powerup_list)
         self.progression_manager = ProgressionManager(self.player)
         self.y = 700
         self.game_over = False
@@ -88,6 +89,9 @@ class GameScene(Scene):
         if self.pause or self.game_over:
             return
 
+        current_time = pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio
+        self.player.update_shield(current_time)
+
         self.player_controller.update()
         self.player_controller.clamp_bounds()
         self.enemy_manager.update()
@@ -96,9 +100,12 @@ class GameScene(Scene):
         self.collision_manager.handle_red_tank_shots()
         self.collision_manager.handle_air_support_collisions()
         self.collision_manager.handle_green_tank_shots()
+        self.collision_manager.handle_powerup_collisions()
         self.game_over = self.collision_manager.handle_player_collisions()
 
-        self.progression_manager.update(pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio, self.enemy_manager, self.tank_red_list, self.tank_green_list)
+        level_up = self.progression_manager.update(current_time, self.enemy_manager, self.tank_red_list, self.tank_green_list)
+        if level_up and self.player.nivel % 3 == 0:
+            self._spawn_shield_powerup()
 
     def _render_background(self, y: float) -> float:
         y_relativa = y % self.background.get_rect().height
@@ -106,6 +113,11 @@ class GameScene(Scene):
         if y_relativa < HEIGHT:
             self.config.screen.blit(self.background, (0, y_relativa))
         return y + 1 * 2.8
+
+    def _spawn_shield_powerup(self) -> None:
+        powerup = ShieldPowerUp()
+        self.all_sprites.add(powerup)
+        self.context.powerup_list.add(powerup)
 
     def _game_over_screen(self) -> None:
         # Play game over sound and stop game music (only once)
@@ -137,7 +149,7 @@ class GameScene(Scene):
             self.player.nivel += 1
             # heal player on level-up but cap maximum HP at 200
             self.player.hp = min(self.player.hp + 100, 200)
-            self.player.misiles += 3
+            self.player.misiles = min(self.player.misiles + 3, 3)
             self.player.apoyo += 1
             self.completado = True
 
@@ -169,6 +181,11 @@ class GameScene(Scene):
         if not self.game_over:
             self.all_sprites.update()
             self.all_sprites.draw(self.config.screen)
+
+            if self.player.shield_active:
+                shield_surf = pygame.Surface((self.player.rect.width + 24, self.player.rect.height + 24), pygame.SRCALPHA)
+                pygame.draw.ellipse(shield_surf, (0, 150, 255, 100), shield_surf.get_rect(), 4)
+                self.config.screen.blit(shield_surf, (self.player.rect.x - 12, self.player.rect.y - 12))
 
             Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player)
 

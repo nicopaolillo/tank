@@ -22,7 +22,10 @@ class HudManager:
         HudManager.show_text(screen, font, "Misiles: ", player.misiles, 0, 120, 140, 120)
         HudManager.show_text(screen, font, "Nivel: ", player.nivel, 0, 180, 140, 180)
         HudManager.show_text(screen, font, "Puntaje: ", player.puntaje, 0, 240, 140, 240)
-        HudManager.show_text(screen, font, "Apoyos: ", player.apoyo, 0, 300, 140, 300)
+        HudManager.show_text(screen, font, "Q - Apoyos: ", player.apoyo, 0, 300, 260, 300)
+        HudManager.show_text(screen, font, "W - Escudos: ", player.shield_inventory, 0, 360, 260, 360)
+        if player.shield_active:
+            HudManager.simple_show_text(screen, font, "Escudo activo", 0, 420)
 
     @staticmethod
     def draw_pause_overlay(screen: pygame.Surface, font_small: pygame.font.Font, font_large: pygame.font.Font, width: int, height: int) -> None:

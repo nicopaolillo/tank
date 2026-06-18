@@ -25,3 +25,18 @@ class Player(pygame.sprite.Sprite):
         self.misiles = PLAYER_INITIAL_MISSILES
         self.puntaje = 0
         self.apoyo = PLAYER_INITIAL_SUPPORT
+        self.shield_inventory = 0
+        self.shield_active = False
+        self.shield_duration = 3.0
+        self.shield_end_time = 0.0
+
+    def activate_shield(self, current_time: float) -> None:
+        if self.shield_inventory <= 0 or self.shield_active:
+            return
+        self.shield_inventory -= 1
+        self.shield_active = True
+        self.shield_end_time = current_time + self.shield_duration
+
+    def update_shield(self, current_time: float) -> None:
+        if self.shield_active and current_time >= self.shield_end_time:
+            self.shield_active = False
