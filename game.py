@@ -1,6 +1,7 @@
-import pygame, time, sys, random
-from pygame import QUIT
-from pygame.mixer import pre_init
+import pygame
+import time
+import sys
+import random
 
 from entities.Player import Player
 from entities.Tank import Tank, Tank_green
@@ -10,182 +11,163 @@ from entities.Shooting import Shooting
 
 from resources.Hud import Hud
 from GameContext import GameContext
-
-pygame.init()
-pygame.mixer.init()
-width = 1000
-height = 700
-white = (255,255,255)
-black = (0,0,0)
-sand_color = (195,169,139)
-background = pygame.image.load("assets/background_2.png")
-#Crea la ventana/fps!!!
-screen = pygame.display.set_mode((width,height))
-fps = pygame.time.Clock()
-#creación de canales de música
-game_channel = pygame.mixer.Channel(0)
-options_channel = pygame.mixer.Channel(1)
-main_channel = pygame.mixer.Channel(2)
-gameover_channel = pygame.mixer.Channel(3)
-#carga de efectos de sonido y música
-game_channel_sound = pygame.mixer.Sound("sound/song.ogg")
-options_channel_sound = pygame.mixer.Sound("sound/options.ogg")
-main_channel_sound = pygame.mixer.Sound("sound/main.ogg")
-gameover_channel_sound = pygame.mixer.Sound("sound/gameover.ogg")
-engine = pygame.mixer.Sound("sound/engine.ogg")
-explosion = pygame.mixer.Sound("sound/explosion.ogg")
-shoot_sound = pygame.mixer.Sound("sound/shoot.ogg")
-iron_sound = pygame.mixer.Sound("sound/iron_sound.ogg")
-sonidoMenu = pygame.mixer.Sound('sound/selection.ogg')
-
-#Fuente y tamaño de las letras
-font = pygame.font.SysFont(None, 40)
-font2 = pygame.font.SysFont(None, 100)
+from config.Settings import (
+    GameConfig, WIDTH, HEIGHT, BLACK, GREEN_TEXT, DARK_GREEN_TEXT, RED_TEXT,
+    PLAYER_SPEED, PLAYER_BOUNDS_LEFT, PLAYER_BOUNDS_RIGHT,
+    PLAYER_INITIAL_HP, PLAYER_INITIAL_LEVEL, PLAYER_INITIAL_MISSILES, PLAYER_INITIAL_SUPPORT,
+    MISSILE_RECHARGE_TIME, MISSILE_SCORE_PENALTY_PER_SECOND, MISSILE_FIRE_COOLDOWN,
+    TARGET_FPS, GAME_LOOP_DELAY, BACKGROUND_IMAGE,
+    TANK_RED_HIT_DAMAGE, TANK_GREEN_HIT_DAMAGE, TANK_RED_KILL_POINTS, TANK_GREEN_KILL_POINTS,
+    AIR_SUPPORT_RED_POINTS, AIR_SUPPORT_GREEN_POINTS
+)
 
 
+# Create global config instance (will be used throughout the game)
+config: GameConfig = None
 
-def simple_show_text(string,position1, position2):
-    text1 = font.render(string, True, (173,255,47))
-    screen.blit(text1, (position1,position2))
 
-def show_text(string, int, position1, position2, position3, position4):
-    text1 = font.render(string, True, (173,255,47))
-    screen.blit(text1, (position1,position2))
-    text2 = font.render(str(int), True, (173,255,47))
-    screen.blit(text2, (position3,position4))
+def simple_show_text(config, string, position1, position2):
+    text1 = config.font_small.render(string, True, GREEN_TEXT)
+    config.screen.blit(text1, (position1, position2))
 
-def gameOver():
-    gameover_channel.play(gameover_channel_sound, loops=0, fade_ms=0)
-    text1 = font2.render("GAME OVER", True, (255,0,0))
-    text_rect = text1.get_rect(center=(width/2, height/2))
-    screen.blit(text1, text_rect)
-    game_channel.stop()
+def show_text(config, string, int_value, position1, position2, position3, position4):
+    text1 = config.font_small.render(string, True, GREEN_TEXT)
+    config.screen.blit(text1, (position1, position2))
+    text2 = config.font_small.render(str(int_value), True, GREEN_TEXT)
+    config.screen.blit(text2, (position3, position4))
 
-def Pause(surface): #Pausa dibuja un rectangulo negro con baja opacidad en la pantalla
-    shape_surf = pygame.Surface(pygame.Rect((0, 0, width, height)).size, pygame.SRCALPHA)
-    pygame.draw.rect(shape_surf, (0,0,0, 127), shape_surf.get_rect())
+def gameOver(config):
+    config.gameover_channel.play(config.get_sound('gameover'), loops=0, fade_ms=0)
+    text1 = config.font_large.render("GAME OVER", True, RED_TEXT)
+    text_rect = text1.get_rect(center=(WIDTH / 2, HEIGHT / 2))
+    config.screen.blit(text1, text_rect)
+    config.game_channel.stop()
+
+def Pause(config):
+    shape_surf = pygame.Surface(pygame.Rect((0, 0, WIDTH, HEIGHT)).size, pygame.SRCALPHA)
+    pygame.draw.rect(shape_surf, (0, 0, 0, 127), shape_surf.get_rect())
     shape_surf.set_alpha(128)
-    surface.blit(shape_surf, (0, 0, width, height))
-    text1 = font2.render("PAUSA", True, (0,143,57))
-    text2 = font.render("Pulse p para continuar", True, (0,143,57))
-    text_rect = text1.get_rect(center=(width/2, height/2))
-    text_rect2 = text2.get_rect(center=(width/2, height/2+50))
-    screen.blit(text1, text_rect)
-    screen.blit(text2, text_rect2)
+    config.screen.blit(shape_surf, (0, 0, WIDTH, HEIGHT))
+    text1 = config.font_large.render("PAUSA", True, DARK_GREEN_TEXT)
+    text2 = config.font_small.render("Pulse p para continuar", True, DARK_GREEN_TEXT)
+    text_rect = text1.get_rect(center=(WIDTH / 2, HEIGHT / 2))
+    text_rect2 = text2.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 50))
+    config.screen.blit(text1, text_rect)
+    config.screen.blit(text2, text_rect2)
 
 
 
 #Menu del juego....................................................................../
-"""Texto en la mitad mas 50 para arriba y 50 para abajo.Posicion de los cuadrados que marcan que
-opcion estas eligiendo va a ser lo mismo, para tener una referencia y despues un event
-que vaya manejando la variable
-width = 1000
-height = 700"""
-def menu():
-    main_channel.play(main_channel_sound, loops=-1, fade_ms=100)
-    sigueEnMenu= True
-    cuadradoEnX = int(width/2)
-    cuadradoEnY = int((height/2)-50)
-    jugar=int((height/2)-50)
-    salir= int((height/2)+50)
-    negro= pygame.image.load("assets/main.png")
-    #cuadrado = pygame.Rect(cuadradoEnX, cuadradoEnY, 150, 30)
-    while(sigueEnMenu):
-        pygame.draw.rect(screen, (255, 0, 0), (cuadradoEnX, cuadradoEnY, 150, 30), 1)
-        # Texto
-        Hud.simpleShowText(screen,font,"Jugar",width / 2,(height / 2) - 50)
-        simple_show_text("Opciones", width/2, (height/2))
-        simple_show_text("Salir", width/2, (height/2)+50)
+def menu(config):
+    config.main_channel.play(config.get_sound('menu'), loops=-1, fade_ms=100)
+    sigueEnMenu = True
+    cuadradoEnX = int(WIDTH / 2)
+    cuadradoEnY = int((HEIGHT / 2) - 50)
+    jugar = int((HEIGHT / 2) - 50)
+    salir = int((HEIGHT / 2) + 50)
+    negro = pygame.image.load("assets/main.png")
+    
+    while sigueEnMenu:
+        pygame.draw.rect(config.screen, RED_TEXT, (cuadradoEnX, cuadradoEnY, 150, 30), 1)
+        Hud.simpleShowText(config.screen, config.font_small, "Jugar", WIDTH / 2, (HEIGHT / 2) - 50)
+        simple_show_text(config, "Opciones", WIDTH / 2, (HEIGHT / 2))
+        simple_show_text(config, "Salir", WIDTH / 2, (HEIGHT / 2) + 50)
 
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    sonidoMenu.play()
+                    config.get_sound('select').play()
                     pygame.quit()
+                    sys.exit()
                 if event.key == pygame.K_UP:
-                    sonidoMenu.play()
+                    config.get_sound('select').play()
                     cuadradoEnY -= 50
                     if cuadradoEnY < jugar:
-                        cuadradoEnY=((height/2)+50)
+                        cuadradoEnY = ((HEIGHT / 2) + 50)
                 if event.key == pygame.K_DOWN:
-                    sonidoMenu.play()
+                    config.get_sound('select').play()
                     cuadradoEnY = cuadradoEnY + 50
                     if cuadradoEnY > salir:
-                        cuadradoEnY = ((height/2)-50)
+                        cuadradoEnY = ((HEIGHT / 2) - 50)
                 if event.key == pygame.K_RETURN:
-                    sonidoMenu.play()
-                    if cuadradoEnY == ((height/2)-50) :
-                        main_channel.stop()
-                        game_channel.play(game_channel_sound, loops=-1, fade_ms=100)
+                    config.get_sound('select').play()
+                    if cuadradoEnY == ((HEIGHT / 2) - 50):
+                        config.main_channel.stop()
+                        config.game_channel.play(config.get_sound('game'), loops=-1, fade_ms=100)
                         sigueEnMenu = False
-                    elif cuadradoEnY == ((height / 2)):
-                        opciones(cuadradoEnX,cuadradoEnY)
-                    elif cuadradoEnY == ((height / 2)+50):
+                    elif cuadradoEnY == ((HEIGHT / 2)):
+                        opciones(config, cuadradoEnX, cuadradoEnY)
+                    elif cuadradoEnY == ((HEIGHT / 2) + 50):
                         pygame.quit()
-        # actualiza la pantalla
+                        sys.exit()
+        
+        config.screen.blit(negro, (0, 0))
+        pygame.draw.rect(config.screen, RED_TEXT, (cuadradoEnX, cuadradoEnY, 150, 30), 1)
+        Hud.simpleShowText(config.screen, config.font_small, "Jugar", WIDTH / 2, (HEIGHT / 2) - 50)
+        simple_show_text(config, "Opciones", WIDTH / 2, (HEIGHT / 2))
+        simple_show_text(config, "Salir", WIDTH / 2, (HEIGHT / 2) + 50)
         pygame.display.update()
-        screen.blit(negro, (0,0))
-def opciones(cuadradoEnX,cuadradoEnY):
-    sigueEnOpciones=True
+
+def opciones(config, cuadradoEnX, cuadradoEnY):
+    sigueEnOpciones = True
     opcionesFondo = pygame.image.load("assets/options.png")
-    main_channel.stop()
-    options_channel.play(options_channel_sound, loops=-1, fade_ms=100)
-    Video = int((height / 2) - 50)
-    Atras = int((height / 2) + 50)
-    while (sigueEnOpciones):
-        pygame.draw.rect(screen, (255, 0, 0), (cuadradoEnX, cuadradoEnY, 150, 30), 1)
-        # Texto
-        simple_show_text("Video", width / 2, (height / 2) - 50)
-        simple_show_text("Sonido", width / 2, (height / 2))
-        simple_show_text("Atrás", width / 2, (height / 2) + 50)
+    config.main_channel.stop()
+    config.options_channel.play(config.get_sound('options'), loops=-1, fade_ms=100)
+    Video = int((HEIGHT / 2) - 50)
+    Atras = int((HEIGHT / 2) + 50)
+    
+    while sigueEnOpciones:
+        config.screen.blit(opcionesFondo, (0, 0))
+        pygame.draw.rect(config.screen, RED_TEXT, (cuadradoEnX, cuadradoEnY, 150, 30), 1)
+        simple_show_text(config, "Video", WIDTH / 2, (HEIGHT / 2) - 50)
+        simple_show_text(config, "Sonido", WIDTH / 2, (HEIGHT / 2))
+        simple_show_text(config, "Atrás", WIDTH / 2, (HEIGHT / 2) + 50)
 
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    sonidoMenu.play()
+                    config.get_sound('select').play()
                     pygame.quit()
+                    sys.exit()
                 if event.key == pygame.K_UP:
-                    sonidoMenu.play()
+                    config.get_sound('select').play()
                     cuadradoEnY -= 50
                     if cuadradoEnY < Video:
-                        cuadradoEnY = ((height / 2) + 50)
+                        cuadradoEnY = ((HEIGHT / 2) + 50)
                 if event.key == pygame.K_DOWN:
-                    sonidoMenu.play()
+                    config.get_sound('select').play()
                     cuadradoEnY = cuadradoEnY + 50
                     if cuadradoEnY > Atras:
-                        cuadradoEnY = ((height / 2) - 50)
+                        cuadradoEnY = ((HEIGHT / 2) - 50)
                 if event.key == pygame.K_RETURN:
-                    sonidoMenu.play()
-                    if cuadradoEnY == ((height / 2) - 50):
+                    config.get_sound('select').play()
+                    if cuadradoEnY == ((HEIGHT / 2) - 50):
                         sigueEnOpciones = True
-                    elif cuadradoEnY == ((height / 2)):
+                    elif cuadradoEnY == ((HEIGHT / 2)):
                         sigueEnOpciones = True
-                    elif cuadradoEnY == ((height / 2) + 50):
-                        options_channel.stop()
-                        main_channel.play(main_channel_sound, loops=-1, fade_ms=100)
+                    elif cuadradoEnY == ((HEIGHT / 2) + 50):
+                        config.options_channel.stop()
+                        config.main_channel.play(config.get_sound('menu'), loops=-1, fade_ms=100)
                         sigueEnOpciones = False
-        # actualiza la pantalla
+        
         pygame.display.update()
-        screen.blit(opcionesFondo, (0,0))
 
 
 #Extracciones de game()
-def handlePlayerBounds(player, height):
+def handlePlayerBounds(player):
+    if player.rect.right > PLAYER_BOUNDS_RIGHT:
+        player.rect.right = PLAYER_BOUNDS_RIGHT
 
-    if player.rect.right > 800:
-        player.rect.right = 800
-
-    if player.rect.left < 200:
-        player.rect.left = 200
+    if player.rect.left < PLAYER_BOUNDS_LEFT:
+        player.rect.left = PLAYER_BOUNDS_LEFT
 
     if player.rect.top < 0:
         player.rect.top = 0
 
-    if player.rect.bottom > height:
-        player.rect.bottom = height
+    if player.rect.bottom > HEIGHT:
+        player.rect.bottom = HEIGHT
 
 def updateEnemyMovement(tank_red_list, tank_green_list):
-
     for tank in tank_red_list:
         tank.rect.y += tank.speed_y * 3.8
 
@@ -193,15 +175,13 @@ def updateEnemyMovement(tank_red_list, tank_green_list):
         tank.rect.y += tank.speed_y * 3.8
 
 def rechargeMissiles(player, tiempoTranscurrido, misilNuevo):
-
-    if tiempoTranscurrido - misilNuevo > 3:
+    if tiempoTranscurrido - misilNuevo > MISSILE_RECHARGE_TIME:
         player.misiles += 1
         misilNuevo = tiempoTranscurrido
 
     return misilNuevo
 
-def checkLevelCompleted(player,tank_red_list,tank_green_list):
-
+def checkLevelCompleted(player, tank_red_list, tank_green_list):
     if len(tank_green_list) == 0 and len(tank_red_list) == 0:
 
         player.nivel += 1
@@ -213,8 +193,7 @@ def checkLevelCompleted(player,tank_red_list,tank_green_list):
 
     return False
 
-def spawnNextLevel(player,completado,tank_green_list,tank_red_list,all_sprites):
-
+def spawnNextLevel(player, completado, tank_green_list, tank_red_list, all_sprites):
     if player.nivel > 1 and completado:
 
         completado = False
@@ -236,7 +215,7 @@ def updatePlayerMovement(player):
     player.rect.x += player.speed_x
     player.rect.y += player.speed_y
 
-def handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
+def handleRedTankCrash(config, player, tank_red_list, all_sprites):
 
     crash_list = pygame.sprite.spritecollide(
         player,
@@ -244,13 +223,13 @@ def handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
         True)
 
     if len(crash_list) == 1:
-        explosion.play()
+        config.get_sound('explosion').play()
 
     for tank in crash_list:
 
-        player.hp -= 20
+        player.hp -= TANK_RED_HIT_DAMAGE
 
-        death = Death(player.rect.x,player.rect.y)
+        death = Death(player.rect.x, player.rect.y)
 
         death.animate()
 
@@ -258,20 +237,20 @@ def handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
 
     return player.hp <= 0
 
-def handleGreenTankCollision(player,tank_green_list,all_sprites):
+def handleGreenTankCollision(config, player, tank_green_list, all_sprites):
 
     game_over = False
 
-    crash_list = pygame.sprite.spritecollide(player,tank_green_list,True)
+    crash_list = pygame.sprite.spritecollide(player, tank_green_list, True)
 
     if len(crash_list) == 1:
-        explosion.play()
+        config.get_sound('explosion').play()
 
     for tank in crash_list:
 
-        player.hp -= 40
+        player.hp -= TANK_GREEN_HIT_DAMAGE
 
-        death = Death(player.rect.x,player.rect.y)
+        death = Death(player.rect.x, player.rect.y)
 
         death.animate()
         all_sprites.add(death)
@@ -280,70 +259,70 @@ def handleGreenTankCollision(player,tank_green_list,all_sprites):
 
             all_sprites.remove(player)
             game_over = True
-            gameOver()
+            gameOver(config)
 
     return game_over
 
-def handleRedTankShots(shoot_list,tank_red_list,all_sprites,player):
+def handleRedTankShots(config, shoot_list, tank_red_list, all_sprites, player):
 
     for shoot in list(shoot_list):
 
-        shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_red_list,True)
+        shoot_hits_list = pygame.sprite.spritecollide(shoot, tank_red_list, True)
 
         for tank in shoot_hits_list:
 
             all_sprites.remove(shoot)
             shoot_list.remove(shoot)
 
-            explosion.play()
+            config.get_sound('explosion').play()
 
-            death = Death(tank.rect.x,tank.rect.y)
+            death = Death(tank.rect.x, tank.rect.y)
 
             death.animate()
 
             all_sprites.add(death)
 
-            player.puntaje += 200
+            player.puntaje += TANK_RED_KILL_POINTS
 
         if shoot.rect.y < -10:
 
             if shoot in all_sprites:
-             all_sprites.remove(shoot)
+                all_sprites.remove(shoot)
 
             if shoot in shoot_list:
-             shoot_list.remove(shoot)
+                shoot_list.remove(shoot)
 
-def handleAirSupportCollisions(apoyo_list,tank_red_list,tank_green_list,all_sprites,player):
+def handleAirSupportCollisions(config, apoyo_list, tank_red_list, tank_green_list, all_sprites, player):
 
     for apoyo in list(apoyo_list):
 
-        apoyo_hits_list = pygame.sprite.spritecollide(apoyo,tank_red_list,True)
+        apoyo_hits_list = pygame.sprite.spritecollide(apoyo, tank_red_list, True)
 
-        apoyo_hits_list2 = pygame.sprite.spritecollide(apoyo,tank_green_list,True)
+        apoyo_hits_list2 = pygame.sprite.spritecollide(apoyo, tank_green_list, True)
 
         for tank in apoyo_hits_list:
 
-            explosion.play()
+            config.get_sound('explosion').play()
 
-            death = Death(tank.rect.x,tank.rect.y)
+            death = Death(tank.rect.x, tank.rect.y)
 
             death.animate()
 
             all_sprites.add(death)
 
-            player.puntaje += 200
+            player.puntaje += AIR_SUPPORT_RED_POINTS
 
         for tank in apoyo_hits_list2:
 
-            explosion.play()
+            config.get_sound('explosion').play()
 
-            death = Death(tank.rect.x,tank.rect.y)
+            death = Death(tank.rect.x, tank.rect.y)
 
             death.animate()
 
             all_sprites.add(death)
 
-            player.puntaje += 300
+            player.puntaje += AIR_SUPPORT_GREEN_POINTS
 
         if apoyo.rect.y < -200:
 
@@ -353,11 +332,11 @@ def handleAirSupportCollisions(apoyo_list,tank_red_list,tank_green_list,all_spri
             if apoyo in apoyo_list:
                 apoyo_list.remove(apoyo)
 
-def handleGreenTankShots(shoot_list,tank_green_list,tank_red_list,all_sprites,player):
+def handleGreenTankShots(config, shoot_list, tank_green_list, tank_red_list, all_sprites, player):
 
     for shoot in list(shoot_list):
 
-        shoot_hits_list = pygame.sprite.spritecollide(shoot,tank_green_list,len(tank_red_list) == 0)
+        shoot_hits_list = pygame.sprite.spritecollide(shoot, tank_green_list, len(tank_red_list) == 0)
 
         for tank in shoot_hits_list:
 
@@ -369,51 +348,52 @@ def handleGreenTankShots(shoot_list,tank_green_list,tank_red_list,all_sprites,pl
 
             if len(tank_red_list) > 0:
 
-                iron_sound.play()
+                config.get_sound('iron').play()
 
             else:
 
-                player.puntaje += 500
+                player.puntaje += TANK_GREEN_KILL_POINTS
 
-                death = Death(tank.rect.x,tank.rect.y)
+                death = Death(tank.rect.x, tank.rect.y)
 
                 death.animate()
 
                 all_sprites.add(death)
 
-                explosion.play()
+                config.get_sound('explosion').play()
 
-def renderGame(player,all_sprites,game_over):
+def renderGame(config, player, all_sprites, game_over):
 
     if not game_over:
 
         all_sprites.update()
-        all_sprites.draw(screen)
+        all_sprites.draw(config.screen)
 
-    Hud.showText(screen,font,"Energía: ",player.hp,0,60,140,60)
+    Hud.showText(config.screen, config.font_small, "Energía: ", player.hp, 0, 60, 140, 60)
 
-    show_text("Misiles: ",player.misiles,0,120,140,120)
+    show_text(config, "Misiles: ", player.misiles, 0, 120, 140, 120)
 
-    show_text("Nivel: ",player.nivel,0,180,140,180)
+    show_text(config, "Nivel: ", player.nivel, 0, 180, 140, 180)
 
-    show_text("Puntaje: ",player.puntaje,0,240,140,240)
+    show_text(config, "Puntaje: ", player.puntaje, 0, 240, 140, 240)
 
-    show_text("Apoyos: ",player.apoyo,0,300,140,300)
+    show_text(config, "Apoyos: ", player.apoyo, 0, 300, 140, 300)
 
     pygame.display.flip()
 
-def renderBackground(y):
+def renderBackground(config, y):
 
+    background = pygame.image.load(BACKGROUND_IMAGE).convert()
     y_relativa = y % background.get_rect().height
 
-    screen.blit(
+    config.screen.blit(
         background,
         (0, y_relativa - background.get_rect().height)
     )
 
-    if y_relativa < height:
+    if y_relativa < HEIGHT:
 
-        screen.blit(
+        config.screen.blit(
             background,
             (0, y_relativa)
         )
@@ -422,78 +402,75 @@ def renderBackground(y):
 
     return y
 
-def handlePlayerCollisions(player,tank_red_list,tank_green_list,all_sprites):
+def handlePlayerCollisions(config, player, tank_red_list, tank_green_list, all_sprites):
 
-    if handleRedTankCrash(player,tank_red_list,all_sprites,explosion):
+    if handleRedTankCrash(config, player, tank_red_list, all_sprites):
 
         all_sprites.remove(player)
-        gameOver()
+        gameOver(config)
 
         return True
 
-    if handleGreenTankCollision(player,tank_green_list,all_sprites):
+    if handleGreenTankCollision(config, player, tank_green_list, all_sprites):
 
         return True
 
     return False
 
-def handleGameProgression(player,tiempoTranscurrido,misilNuevo,completado,tank_green_list,tank_red_list,all_sprites):
+def handleGameProgression(player, tiempoTranscurrido, misilNuevo, completado, tank_green_list, tank_red_list, all_sprites):
 
-    misilNuevo = rechargeMissiles(player,tiempoTranscurrido,misilNuevo)
+    misilNuevo = rechargeMissiles(player, tiempoTranscurrido, misilNuevo)
 
-    if checkLevelCompleted(player,tank_red_list,tank_green_list):
+    if checkLevelCompleted(player, tank_red_list, tank_green_list):
 
         completado = True
 
-    completado = spawnNextLevel(player,completado,tank_green_list,tank_red_list,all_sprites)
+    completado = spawnNextLevel(player, completado, tank_green_list, tank_red_list, all_sprites)
 
     return misilNuevo, completado
 
 
-def handleKeyboardEvents(events, player, all_sprites, apoyo_list, shoot_list, tiempoTranscurrido, misilNuevo, ultimoMisil, pause):
+def handleKeyboardEvents(config, events, player, all_sprites, apoyo_list, shoot_list, tiempoTranscurrido, misilNuevo, ultimoMisil, pause):
     for event in events:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 pygame.quit()
+                sys.exit()
             elif event.key == pygame.K_p:
                 pause = not pause
                 if pause:
-                    Hud.pause(screen, font, font2, width, height)
+                    Pause(config)
                     pygame.display.flip()
             elif event.key == pygame.K_LEFT:
-                player.speed_x = -3
-                player.image = pygame.image.load("assets/player_left.png").convert()
-                player.image.set_colorkey(black)
+                player.speed_x = -PLAYER_SPEED
+                player.image = config.get_player_sprite('left')
             elif event.key == pygame.K_RIGHT:
-                player.speed_x = 3
-                player.image = pygame.image.load("assets/player_right.png").convert()
-                player.image.set_colorkey(black)
+                player.speed_x = PLAYER_SPEED
+                player.image = config.get_player_sprite('right')
             elif event.key == pygame.K_UP:
-                player.speed_y = -3
-                player.image = pygame.image.load("assets/player.png").convert()
-                player.image.set_colorkey(black)
+                player.speed_y = -PLAYER_SPEED
+                player.image = config.get_player_sprite('default')
             elif event.key == pygame.K_DOWN:
-                player.speed_y = 3
-                player.image = pygame.image.load("assets/player_down.png").convert()
-                player.image.set_colorkey(black)
+                player.speed_y = PLAYER_SPEED
+                player.image = config.get_player_sprite('down')
             elif event.key == pygame.K_q:
                 if player.apoyo > 0:
                     apoyo = AirSupport()
                     apoyo.rect.x = player.rect.x + 10
-                    apoyo.rect.y = height
+                    apoyo.rect.y = HEIGHT
                     all_sprites.add(apoyo)
                     apoyo_list.add(apoyo)
                     player.apoyo -= 1
             elif event.key == pygame.K_SPACE:
                 if player.misiles > 0:
-                    if int(tiempoTranscurrido) - int(ultimoMisil) > 15:
-                        player.puntaje = player.puntaje - ((int(tiempoTranscurrido) - int(ultimoMisil)) * 300)
+                    if int(tiempoTranscurrido) - int(ultimoMisil) > MISSILE_FIRE_COOLDOWN:
+                        player.puntaje = player.puntaje - ((int(tiempoTranscurrido) - int(ultimoMisil)) * MISSILE_SCORE_PENALTY_PER_SECOND)
                     shoot = Shooting()
                     shoot.rect.x = player.rect.x + 10
                     shoot.rect.y = player.rect.y - 20
                     all_sprites.add(shoot)
                     shoot_list.add(shoot)
-                    shoot_sound.play()
+                    config.get_sound('shoot').play()
                     player.misiles -= 1
                     misilNuevo = tiempoTranscurrido
                     ultimoMisil = tiempoTranscurrido
@@ -507,7 +484,8 @@ def handleKeyboardEvents(events, player, all_sprites, apoyo_list, shoot_list, ti
 
 #Bucle principal...................................................................../
 enProceso = True
-def game():
+def game(config):
+    context = GameContext(config)
     player = context.player
 
     all_sprites = context.all_sprites
@@ -519,25 +497,21 @@ def game():
     apoyo_list = context.apoyo_list
     crash_list = context.crash_list
 
-    player.hp=200
-    player.nivel=1
-    player.misiles=3
-    player.apoyo=1
-    misilNuevo=0
-    player.puntaje=0
-    ultimoMisil=0   
-    y=700
-    all_sprites.add(player)
-    game_over=False
-    completado=False
-    tiempoFinal=int(pygame.time.get_ticks())/500
-    pause=False
+    context.reset_player_state()
+    misilNuevo = 0
+    ultimoMisil = 0   
+    y = 700
+    game_over = False
+    completado = False
+    tiempoFinal = int(pygame.time.get_ticks()) / 500
+    pause = False
   
-    while not game_over :
+    while not game_over:
         if not pause:
-            tiempoTranscurrido=int(pygame.time.get_ticks())/500-tiempoFinal
+            tiempoTranscurrido = int(pygame.time.get_ticks()) / 500 - tiempoFinal
         events = pygame.event.get()
         misilNuevo, ultimoMisil, pause = handleKeyboardEvents(
+            config,
             events,
             player,
             all_sprites,
@@ -549,46 +523,46 @@ def game():
             pause,
         )
 
-    #control del jugador dentro del escenario
-        handlePlayerBounds(player, height)    
+        #control del jugador dentro del escenario
+        handlePlayerBounds(player)    
 
         #fondo y movimiento de la imagen de fondo
         #se encapsula todas las actualizaciones de sprites condicionados por el estado de "pause"
         if not pause:
             #renderizado del fondo y movimiento del mismo
-            y = renderBackground(y)
+            y = renderBackground(config, y)
 
             #actualización del movimiento del tanque rojo
             updatePlayerMovement(player)
         
             #actualización del movimiento vertical de todos los tanques
-            updateEnemyMovement( tank_red_list,tank_green_list)
+            updateEnemyMovement(tank_red_list, tank_green_list)
 
             #colisiones del disparo con los tanques rojos
-            handleRedTankShots(shoot_list,tank_red_list,all_sprites,player)
+            handleRedTankShots(config, shoot_list, tank_red_list, all_sprites, player)
 
             #Colisiones del apoyo con tanques
-            handleAirSupportCollisions(apoyo_list,tank_red_list,tank_green_list,all_sprites,player) 
+            handleAirSupportCollisions(config, apoyo_list, tank_red_list, tank_green_list, all_sprites, player) 
 
             #colisiones del disparo con las tanques verdes
-            handleGreenTankShots(shoot_list,tank_green_list,tank_red_list,all_sprites,player)
+            handleGreenTankShots(config, shoot_list, tank_green_list, tank_red_list, all_sprites, player)
             
             #colisión del player con los tanques
-            game_over = handlePlayerCollisions(player,tank_red_list,tank_green_list,all_sprites)
+            game_over = handlePlayerCollisions(config, player, tank_red_list, tank_green_list, all_sprites)
 
             #todos los metodos update de los objetos de esta lista funcionando
-            renderGame(player,all_sprites,game_over)
+            renderGame(config, player, all_sprites, game_over)
 
     #Bucle principal.....................................................................................\
 
     #Los misiles se incrementan cada 3 segundos
-        misilNuevo, completado = handleGameProgression(player,tiempoTranscurrido,misilNuevo,completado,tank_green_list,tank_red_list,all_sprites)
+        misilNuevo, completado = handleGameProgression(player, tiempoTranscurrido, misilNuevo, completado, tank_green_list, tank_red_list, all_sprites)
             
     #actualiza la pantalla
-        fps.tick(60) 
+        config.clock.tick(TARGET_FPS) 
         
-while(enProceso):
-    pygame.time.wait(3200)
-    context = GameContext()
-    menu()
-    game()
+while enProceso:
+    pygame.time.wait(GAME_LOOP_DELAY)
+    config = GameConfig()
+    menu(config)
+    game(config)
