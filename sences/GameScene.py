@@ -53,7 +53,11 @@ class GameScene(Scene):
         self.game_over = False
         self.completado = False
         self.pause = False
-        self.tiempoFinal = int(pygame.time.get_ticks()) / 500
+        self._game_over_shown = False
+        # normalize timing to seconds
+        self.tiempo_inicio = pygame.time.get_ticks() / 1000.0
+        self.ultimoMisil = 0.0
+        self.misilNuevo = 0.0
         self.show_debug = False
 
     def on_activate(self) -> None:
@@ -63,13 +67,18 @@ class GameScene(Scene):
         self.config.game_channel.stop()
 
     def handle_events(self, events: list[pygame.event.EventType]) -> None:
-        tiempoTranscurrido = int(pygame.time.get_ticks()) / 500 - self.tiempoFinal
+        tiempoTranscurrido = pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio
         for event in events:
             # toggle debug overlay
             if event.type == pygame.KEYDOWN and event.key == pygame.K_F1:
                 self.show_debug = not self.show_debug
                 continue
             if event.type == pygame.KEYDOWN:
+                # allow restarting the scene after game over
+                if self.game_over and event.key == pygame.K_r:
+                    new_scene = GameScene(self.config, self.scene_manager)
+                    self.scene_manager.change_scene(new_scene)
+                    return
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
@@ -100,8 +109,11 @@ class GameScene(Scene):
                         self.player.apoyo -= 1
                 elif event.key == pygame.K_SPACE:
                     if self.player.misiles > 0:
-                        if int(tiempoTranscurrido) - int(self.ultimoMisil) > MISSILE_FIRE_COOLDOWN:
-                            self.player.puntaje = self.player.puntaje - ((int(tiempoTranscurrido) - int(self.ultimoMisil)) * MISSILE_SCORE_PENALTY_PER_SECOND)
+                        # enforce cooldown between missile shots but do not penalize score
+                        tiempo_desde_ultimo = tiempoTranscurrido - self.ultimoMisil
+                        if tiempo_desde_ultimo < MISSILE_FIRE_COOLDOWN:
+                            # Too soon to fire another missile; ignore input
+                            continue
                         shoot = Shooting()
                         shoot.rect.x = self.player.rect.x + 10
                         shoot.rect.y = self.player.rect.y - 20
@@ -143,7 +155,7 @@ class GameScene(Scene):
         self._handle_air_support_collisions()
         self._handle_green_tank_shots()
         self.game_over = self._handle_player_collisions()
-        self.misilNuevo, self.completado = self._handle_game_progression(int(pygame.time.get_ticks()) / 500 - self.tiempoFinal)
+        self.misilNuevo, self.completado = self._handle_game_progression(pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio)
 
     def _handle_player_bounds(self) -> None:
         if self.player.rect.right > PLAYER_BOUNDS_RIGHT:
@@ -267,11 +279,25 @@ class GameScene(Scene):
         return False
 
     def _game_over_screen(self) -> None:
-        self.config.gameover_channel.play(self.config.get_sound('gameover'), loops=0, fade_ms=0)
+        # Play game over sound and stop game music (only once)
+        if not self._game_over_shown:
+            self.config.gameover_channel.play(self.config.get_sound('gameover'), loops=0, fade_ms=0)
+            self.config.game_channel.stop()
+            self._game_over_shown = True
+
+    def _draw_game_over_overlay(self) -> None:
+        # Dim background
+        shape_surf = pygame.Surface(pygame.Rect((0, 0, WIDTH, HEIGHT)).size, pygame.SRCALPHA)
+        pygame.draw.rect(shape_surf, (0, 0, 0, 180), shape_surf.get_rect())
+        self.config.screen.blit(shape_surf, (0, 0))
+        # Main text
         text1 = self.config.font_large.render("GAME OVER", True, RED_TEXT)
-        text_rect = text1.get_rect(center=(WIDTH / 2, HEIGHT / 2))
+        text_rect = text1.get_rect(center=(WIDTH / 2, HEIGHT / 2 - 20))
         self.config.screen.blit(text1, text_rect)
-        self.config.game_channel.stop()
+        # Secondary text
+        text2 = self.config.font_small.render("Pulsa R para reiniciar o ESC para salir", True, RED_TEXT)
+        text_rect2 = text2.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 60))
+        self.config.screen.blit(text2, text_rect2)
 
     def _handle_game_progression(self, tiempoTranscurrido: float):
         if tiempoTranscurrido - self.misilNuevo > MISSILE_RECHARGE_TIME:
@@ -280,19 +306,31 @@ class GameScene(Scene):
 
         if len(self.tank_green_list) == 0 and len(self.tank_red_list) == 0:
             self.player.nivel += 1
-            self.player.hp += 100
+            # heal player on level-up but cap maximum HP at 200
+            self.player.hp = min(self.player.hp + 100, 200)
             self.player.misiles += 3
             self.player.apoyo += 1
             self.completado = True
 
         if self.player.nivel > 1 and self.completado:
             self.completado = False
-            for _ in range(self.player.nivel + 2):
-                tank_green = Tank_green()
+            # spawn new tanks from above the screen, staggered so they enter gradually
+            import math
+            num_green = self.player.nivel + 2
+            num_red = self.player.nivel + 4
+
+            for i in range(num_green):
+                offset = 50 * i
+                tank_green = Tank_green(spawn_from_top=True, max_start_offset=200 + offset)
+                # stagger further by pushing some higher
+                tank_green.rect.y -= offset
                 self.tank_green_list.add(tank_green)
                 self.all_sprites.add(tank_green)
-            for _ in range(self.player.nivel + 4):
-                tank_red = Tank()
+
+            for i in range(num_red):
+                offset = 50 * i
+                tank_red = Tank(spawn_from_top=True, max_start_offset=200 + offset)
+                tank_red.rect.y -= offset
                 self.tank_red_list.add(tank_red)
                 self.all_sprites.add(tank_red)
 
@@ -303,19 +341,24 @@ class GameScene(Scene):
             self.all_sprites.update()
             self.all_sprites.draw(self.config.screen)
 
-        Hud.showText(self.config.screen, self.config.font_small, "Energía: ", self.player.hp, 0, 60, 140, 60)
-        Hud.showText(self.config.screen, self.config.font_small, "Misiles: ", self.player.misiles, 0, 120, 140, 120)
-        Hud.showText(self.config.screen, self.config.font_small, "Nivel: ", self.player.nivel, 0, 180, 140, 180)
-        Hud.showText(self.config.screen, self.config.font_small, "Puntaje: ", self.player.puntaje, 0, 240, 140, 240)
-        Hud.showText(self.config.screen, self.config.font_small, "Apoyos: ", self.player.apoyo, 0, 300, 140, 300)
+            Hud.showText(self.config.screen, self.config.font_small, "Energía: ", self.player.hp, 0, 60, 140, 60)
+            Hud.showText(self.config.screen, self.config.font_small, "Misiles: ", self.player.misiles, 0, 120, 140, 120)
+            Hud.showText(self.config.screen, self.config.font_small, "Nivel: ", self.player.nivel, 0, 180, 140, 180)
+            Hud.showText(self.config.screen, self.config.font_small, "Puntaje: ", self.player.puntaje, 0, 240, 140, 240)
+            Hud.showText(self.config.screen, self.config.font_small, "Apoyos: ", self.player.apoyo, 0, 300, 140, 300)
 
-        # Debug overlay: show FPS and player position only when toggled
-        if self.show_debug:
-            fps = self.config.clock.get_fps()
-            debug_text = f"pos={self.player.rect.x},{self.player.rect.y} spd={self.player.speed_x},{self.player.speed_y}"
-            fps_surf = self.config.font_small.render(f"FPS: {fps:.1f}", True, (255, 255, 255))
-            debug_surf = self.config.font_small.render(debug_text, True, (255, 255, 255))
-            self.config.screen.blit(fps_surf, (10, 10))
-            self.config.screen.blit(debug_surf, (10, 30))
+            # Debug overlay: show FPS and player position only when toggled
+            if self.show_debug:
+                fps = self.config.clock.get_fps()
+                debug_text = f"pos={self.player.rect.x},{self.player.rect.y} spd={self.player.speed_x},{self.player.speed_y}"
+                fps_surf = self.config.font_small.render(f"FPS: {fps:.1f}", True, (255, 255, 255))
+                debug_surf = self.config.font_small.render(debug_text, True, (255, 255, 255))
+                self.config.screen.blit(fps_surf, (10, 10))
+                self.config.screen.blit(debug_surf, (10, 30))
+
+        else:
+            # Ensure game over actions happen once
+            self._game_over_screen()
+            self._draw_game_over_overlay()
 
         pygame.display.flip()
