@@ -4,6 +4,7 @@ from enum import Enum
 # Screen dimensions
 WIDTH = 1000
 HEIGHT = 700
+FULLSCREEN = True
 
 # Colors
 WHITE = (255, 255, 255)
@@ -19,8 +20,8 @@ PLAYER_INITIAL_LEVEL = 1
 PLAYER_INITIAL_MISSILES = 3
 PLAYER_INITIAL_SUPPORT = 1
 PLAYER_SPEED = 3
-PLAYER_BOUNDS_LEFT = 200
-PLAYER_BOUNDS_RIGHT = 800
+PLAYER_BOUNDS_LEFT = 150
+PLAYER_BOUNDS_RIGHT = 850
 
 TANK_RED_SPAWN_COUNT = 5
 TANK_GREEN_SPAWN_COUNT = 3
@@ -54,15 +55,19 @@ SOUNDS = {
 # Asset paths
 BACKGROUND_IMAGE = 'assets/background_2.png'
 BACKGROUND_IMAGES = [
-    'assets/background_road_1.jpeg',
-    'assets/background_bridge_1.png',
+    'assets/background_lvl1_A.png',
+    'assets/background_lvl1_B.png',
+    'assets/background_lvl1_C.png',
+
 ]
 PLAYER_SPRITES = {
-    'default': 'assets/player.png',
-    'left': 'assets/player_left.png',
-    'right': 'assets/player_right.png',
-    'down': 'assets/player_down.png',
+    'default': 'assets/player_main.png',
+    'left': 'assets/player_main.png',
+    'right': 'assets/player_main.png',
+    'down': 'assets/player_main.png',
 }
+
+PLAYER_SPRITE_SIZE = (75, 75)
 
 # UI
 FONT_SIZE_SMALL = 40
@@ -79,9 +84,18 @@ class GameConfig:
     def __init__(self):
         pygame.init()
         pygame.mixer.init()
-        
-        # Screen
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+        # Display window and virtual render surface
+        if FULLSCREEN:
+            display_info = pygame.display.Info()
+            display_size = (display_info.current_w, display_info.current_h)
+            self.window = pygame.display.set_mode(display_size, pygame.FULLSCREEN)
+        else:
+            self.window = pygame.display.set_mode((WIDTH, HEIGHT))
+
+        self.screen = pygame.Surface((WIDTH, HEIGHT)).convert()
+        self._last_window_size = self.window.get_size()
+        self._display_rect = self._compute_display_rect(self._last_window_size)
         pygame.display.set_caption("Tank Game")
         
         # Clock
@@ -99,6 +113,27 @@ class GameConfig:
         
         # Sounds (loaded on demand to avoid blocking)
         self._sounds = {}
+        self._player_sprite_cache = {}
+
+    def _compute_display_rect(self, window_size: tuple[int, int]) -> pygame.Rect:
+        window_width, window_height = window_size
+        scale = min(window_width / WIDTH, window_height / HEIGHT)
+        render_width = max(1, int(WIDTH * scale))
+        render_height = max(1, int(HEIGHT * scale))
+        offset_x = (window_width - render_width) // 2
+        offset_y = (window_height - render_height) // 2
+        return pygame.Rect(offset_x, offset_y, render_width, render_height)
+
+    def present(self) -> None:
+        window_size = self.window.get_size()
+        if window_size != self._last_window_size:
+            self._last_window_size = window_size
+            self._display_rect = self._compute_display_rect(window_size)
+
+        scaled_frame = pygame.transform.smoothscale(self.screen, self._display_rect.size)
+        self.window.fill(BLACK)
+        self.window.blit(scaled_frame, self._display_rect.topleft)
+        pygame.display.flip()
     
     def get_sound(self, key: str) -> pygame.mixer.Sound:
         """Load and cache sounds on demand."""
@@ -109,7 +144,26 @@ class GameConfig:
     
     def get_player_sprite(self, direction: str = 'default') -> pygame.Surface:
         """Load player sprite images."""
+        cached = self._player_sprite_cache.get(direction)
+        if cached is not None:
+            return cached.copy()
+
         sprite_path = PLAYER_SPRITES.get(direction, PLAYER_SPRITES['default'])
-        image = pygame.image.load(sprite_path).convert()
-        image.set_colorkey(BLACK)
-        return image
+        image = pygame.image.load(sprite_path).convert_alpha()
+
+        # Remove transparent margins so no boxed look remains after scaling.
+        crop_rect = image.get_bounding_rect(min_alpha=1)
+        if crop_rect.width > 0 and crop_rect.height > 0:
+            image = image.subsurface(crop_rect).copy()
+
+        image = pygame.transform.smoothscale(image, PLAYER_SPRITE_SIZE)
+
+        if direction == 'left':
+            image = pygame.transform.rotate(image, 90)
+        elif direction == 'right':
+            image = pygame.transform.rotate(image, -90)
+        elif direction == 'down':
+            image = pygame.transform.rotate(image, 180)
+
+        self._player_sprite_cache[direction] = image
+        return image.copy()

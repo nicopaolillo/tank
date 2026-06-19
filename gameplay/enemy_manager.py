@@ -12,9 +12,9 @@ class EnemyManager:
 
     def update(self) -> None:
         for tank in self.tank_red_list:
-            tank.rect.y += tank.speed_y * 3.8
+            tank.rect.y += tank.speed_y * 2.0
         for tank in self.tank_green_list:
-            tank.rect.y += tank.speed_y * 3.8
+            tank.rect.y += tank.speed_y * 2.0
 
     def spawn_level(self, level: int) -> None:
         num_green = level + 2

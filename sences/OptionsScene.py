@@ -66,4 +66,4 @@ class OptionsScene(Scene):
             if index == self.selection_index:
                 pygame.draw.rect(self.config.screen, RED_TEXT, (x, y, 150, 30), 1)
 
-        pygame.display.update()
+        self.config.present()

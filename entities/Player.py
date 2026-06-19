@@ -19,6 +19,7 @@ class Player(pygame.sprite.Sprite):
 
         self.speed_x = 0
         self.speed_y = 0
+        self.facing = "up"
 
         self.hp = PLAYER_INITIAL_HP
         self.nivel = PLAYER_INITIAL_LEVEL

@@ -26,15 +26,19 @@ class PlayerController:
     def handle_keydown(self, event: pygame.event.EventType, elapsed_time: float) -> None:
         if event.key == pygame.K_LEFT:
             self.player.speed_x = -PLAYER_SPEED
+            self.player.facing = "left"
             self.player.image = self.config.get_player_sprite("left")
         elif event.key == pygame.K_RIGHT:
             self.player.speed_x = PLAYER_SPEED
+            self.player.facing = "right"
             self.player.image = self.config.get_player_sprite("right")
         elif event.key == pygame.K_UP:
             self.player.speed_y = -PLAYER_SPEED
+            self.player.facing = "up"
             self.player.image = self.config.get_player_sprite("default")
         elif event.key == pygame.K_DOWN:
             self.player.speed_y = PLAYER_SPEED
+            self.player.facing = "down"
             self.player.image = self.config.get_player_sprite("down")
         elif event.key == pygame.K_q and self.player.apoyo > 0:
             self._spawn_support()
@@ -76,9 +80,22 @@ class PlayerController:
         if time_since_last < MISSILE_FIRE_COOLDOWN:
             return
 
-        shoot = Shooting()
-        shoot.rect.x = self.player.rect.x + 10
-        shoot.rect.y = self.player.rect.y - 20
+        direction = getattr(self.player, "facing", "up")
+        shoot = Shooting(direction)
+
+        if direction == "left":
+            shoot.rect.centery = self.player.rect.centery
+            shoot.rect.right = self.player.rect.left - 2
+        elif direction == "right":
+            shoot.rect.centery = self.player.rect.centery
+            shoot.rect.left = self.player.rect.right + 2
+        elif direction == "down":
+            shoot.rect.centerx = self.player.rect.centerx + 3
+            shoot.rect.top = self.player.rect.bottom - 2
+        else:
+            shoot.rect.centerx = self.player.rect.centerx + 3
+            shoot.rect.bottom = self.player.rect.top + 2
+
         self.all_sprites.add(shoot)
         self.shoot_list.add(shoot)
         self.config.get_sound("shoot").play()

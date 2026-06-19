@@ -8,9 +8,10 @@ class AirSupport(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
 
-        self.image = pygame.image.load(
+        plane = pygame.image.load(
             "assets/avion.png"
         ).convert_alpha()
+        self.image = plane
 
         self.image.set_colorkey(WHITE)
 

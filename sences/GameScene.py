@@ -3,9 +3,11 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, BACKGROUND_IMAGE, BACKGROUND_IMAGES
+from config.Settings import GameConfig, BACKGROUND_IMAGES
 from GameContext import GameContext
+from entities.SmokeTrail import SmokeTrail
 from entities.ShieldPowerUp import ShieldPowerUp
+from entities.Tank import Tank, Tank_green
 from sences.Scene import Scene
 from ui.hud import HudManager as Hud
 from gameplay.player_controller import PlayerController
@@ -15,6 +17,7 @@ from gameplay.progression_manager import ProgressionManager
 from config.Settings import (
     WIDTH,
     HEIGHT,
+    MISSILE_RECHARGE_TIME,
     GREEN_TEXT,
     DARK_GREEN_TEXT,
     RED_TEXT,
@@ -34,22 +37,26 @@ class GameScene(Scene):
         self.shoot_list = self.context.shoot_list
         self.apoyo_list = self.context.apoyo_list
         self.crash_list = self.context.crash_list
+        self.smoke_list = self.context.smoke_list
         self.context.reset_player_state()
-        self.background_images = [pygame.image.load(path).convert() for path in BACKGROUND_IMAGES]
+        self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in BACKGROUND_IMAGES]
         self.current_background_index = 0
-        self.current_background = self._scale_background(
-        self.background_images[self.current_background_index])
-        next_index = (self.current_background_index + 1) % len(self.background_images)
-        self.next_background = self._scale_background(
-        self.background_images[next_index])
+        self.next_background_index = 1 % len(self.background_images)
+        self.current_background = self.background_images[self.current_background_index]
+        self.next_background = self.background_images[self.next_background_index]
+        self.background_offset = 0.0
+        self.background_scroll_speed = 80.0
         self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
         self.enemy_manager = EnemyManager(self.all_sprites, self.tank_red_list, self.tank_green_list)
         self.collision_manager = CollisionManager(config, self.player, self.all_sprites, self.shoot_list, self.tank_red_list, self.tank_green_list, self.apoyo_list, self.context.powerup_list)
         self.progression_manager = ProgressionManager(self.player)
-        self.y = 0
         self.game_over = False
         self.pause = False
         self._game_over_shown = False
+        self._last_smoke_spawn_ms = 0
+        self._smoke_spawn_interval_ms = 90
+        self._enemy_smoke_spawn_interval_ms = 140
+        self._enemy_last_smoke_spawn_ms: dict[int, int] = {}
         # normalize timing to seconds
         self.tiempo_inicio = pygame.time.get_ticks() / 1000.0
         self.show_debug = False
@@ -69,6 +76,18 @@ class GameScene(Scene):
                 continue
 
             if event.type == pygame.KEYDOWN:
+                if self.pause:
+                    if event.key == pygame.K_p:
+                        self.pause = False
+                    elif event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
+                    elif event.key == pygame.K_r:
+                        new_scene = GameScene(self.config, self.scene_manager)
+                        self.scene_manager.change_scene(new_scene)
+                        return
+                    continue
+
                 # allow restarting the scene after game over
                 if self.game_over and event.key == pygame.K_r:
                     new_scene = GameScene(self.config, self.scene_manager)
@@ -81,7 +100,7 @@ class GameScene(Scene):
                     self.pause = not self.pause
                     if self.pause:
                         self._pause_screen()
-                        pygame.display.flip()
+                        self.config.present()
                     continue
 
                 self.player_controller.handle_keydown(event, tiempoTranscurrido)
@@ -97,11 +116,14 @@ class GameScene(Scene):
 
         current_time = pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio
         self.player.update_shield(current_time)
+        self._update_background(dt)
 
         self.player_controller.update()
         self.player_controller.clamp_bounds()
         self.enemy_manager.update()
-        self.y = self._render_background(self.y)
+        self._update_smoke_trail()
+        self._update_enemy_smoke_trails()
+        self.smoke_list.update()
 
         self.collision_manager.handle_red_tank_shots()
         self.collision_manager.handle_air_support_collisions()
@@ -113,35 +135,86 @@ class GameScene(Scene):
         if level_up and self.player.nivel % 3 == 0:
             self._spawn_shield_powerup()
 
+    def _update_smoke_trail(self) -> None:
+        vx = self.player.speed_x
+        vy = self.player.speed_y
+        if vx == 0 and vy == 0:
+            return
+
+        now = pygame.time.get_ticks()
+        if now - self._last_smoke_spawn_ms < self._smoke_spawn_interval_ms:
+            return
+
+        self._last_smoke_spawn_ms = now
+
+        direction = pygame.Vector2(vx, vy)
+        if direction.length() == 0:
+            return
+        direction = direction.normalize()
+
+        behind = -direction
+        distance = max(self.player.rect.width, self.player.rect.height) * 0.45
+        smoke_x = int(self.player.rect.centerx + behind.x * distance)
+        smoke_y = int(self.player.rect.centery + behind.y * distance)
+
+        smoke = SmokeTrail(smoke_x, smoke_y)
+        self.smoke_list.add(smoke)
+
+    def _update_enemy_smoke_trails(self) -> None:
+        now = pygame.time.get_ticks()
+        active_ids: set[int] = set()
+
+        enemies = [*self.tank_red_list.sprites(), *self.tank_green_list.sprites()]
+        for tank in enemies:
+            tank_id = id(tank)
+            active_ids.add(tank_id)
+
+            last_spawn = self._enemy_last_smoke_spawn_ms.get(tank_id, 0)
+            if now - last_spawn < self._enemy_smoke_spawn_interval_ms:
+                continue
+
+            move = pygame.Vector2(0, tank.speed_y * 3.5)
+            if move.length() == 0:
+                continue
+
+            self._enemy_last_smoke_spawn_ms[tank_id] = now
+            direction = move.normalize()
+            behind = -direction
+
+            distance = max(tank.rect.width, tank.rect.height) * 0.35
+            smoke_x = int(tank.rect.centerx + behind.x * distance)
+            smoke_y = int(tank.rect.centery + behind.y * distance)
+
+            smoke = SmokeTrail(smoke_x, smoke_y)
+            self.smoke_list.add(smoke)
+
+        # Remove timers for enemies that no longer exist.
+        stale_ids = [tid for tid in self._enemy_last_smoke_spawn_ms if tid not in active_ids]
+        for tid in stale_ids:
+            del self._enemy_last_smoke_spawn_ms[tid]
+
     def _render_background(self, y: float) -> float:
-
-        current_height = self.current_background.get_height()
-
-        self.config.screen.blit(
-        self.current_background,(0, y - current_height))
-
-        self.config.screen.blit(
-        self.next_background,(0, y))
-        y += 2.8
-
-        if y >= current_height:
-
-            y = 0
-
-            self.current_background_index = (
-            self.current_background_index + 1) % len(self.background_images)
-
-            next_index = (self.current_background_index + 1) % len(self.background_images)
-
-            self.current_background = self._scale_background(
-            self.background_images[self.current_background_index])
-            self.next_background = self._scale_background(
-            self.background_images[next_index])
+        current_y = self.background_offset
+        next_y = current_y - HEIGHT
+        self.config.screen.blit(self.current_background, (0, current_y))
+        self.config.screen.blit(self.next_background, (0, next_y))
 
         return y
 
-    def _scale_background(self, background: pygame.Surface) -> pygame.Surface:
-        return pygame.transform.smoothscale(background, (WIDTH, background.get_height()))
+    def _prepare_background(self, background: pygame.Surface) -> pygame.Surface:
+        return pygame.transform.smoothscale(background, (WIDTH, HEIGHT))
+
+    def _update_background(self, dt: float) -> None:
+        self.background_offset += self.background_scroll_speed * dt
+
+        if self.background_offset < HEIGHT:
+            return
+
+        self.background_offset -= HEIGHT
+        self.current_background_index = self.next_background_index
+        self.next_background_index = (self.current_background_index + 1) % len(self.background_images)
+        self.current_background = self.background_images[self.current_background_index]
+        self.next_background = self.background_images[self.next_background_index]
 
     def _spawn_shield_powerup(self) -> None:
         powerup = ShieldPowerUp()
@@ -208,7 +281,9 @@ class GameScene(Scene):
 
     def render(self) -> None:
         if not self.game_over:
+            self._render_background(0)
             self.all_sprites.update()
+            self.smoke_list.draw(self.config.screen)
             self.all_sprites.draw(self.config.screen)
 
             if self.player.shield_active:
@@ -227,9 +302,12 @@ class GameScene(Scene):
                 self.config.screen.blit(fps_surf, (10, 10))
                 self.config.screen.blit(debug_surf, (10, 30))
 
+            if self.pause:
+                self._pause_screen()
+
         else:
             # Ensure game over actions happen once
             self._game_over_screen()
             self._draw_game_over_overlay()
 
-        pygame.display.flip()
+        self.config.present()
