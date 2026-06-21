@@ -19,12 +19,14 @@ PLAYER_INITIAL_HP = 200
 PLAYER_INITIAL_LEVEL = 1
 PLAYER_INITIAL_MISSILES = 3
 PLAYER_INITIAL_SUPPORT = 1
+PLAYER_MAX_SUPPORT = 2
+PLAYER_MAX_SHIELDS = 2
 PLAYER_SPEED = 3
 PLAYER_BOUNDS_LEFT = 150
 PLAYER_BOUNDS_RIGHT = 850
 
-TANK_RED_SPAWN_COUNT = 5
-TANK_GREEN_SPAWN_COUNT = 3
+TANK_RED_SPAWN_COUNT = 2
+TANK_GREEN_SPAWN_COUNT = 1
 
 MISSILE_RECHARGE_TIME = 3.0  # seconds
 MISSILE_SCORE_PENALTY_PER_SECOND = 300
@@ -58,7 +60,7 @@ BACKGROUND_IMAGES = [
     'assets/background_lvl1_A.png',
     'assets/background_lvl1_B.png',
     'assets/background_lvl1_C.png',
-
+    'assets/background_lvl1_D.png',
 ]
 PLAYER_SPRITES = {
     'default': 'assets/player_main.png',

@@ -13,7 +13,9 @@ class MenuScene(Scene):
     def __init__(self, config: GameConfig, scene_manager):
         super().__init__(config)
         self.scene_manager = scene_manager
-        self.background = pygame.image.load("assets/main.png").convert()
+        self._raw_background = pygame.image.load("assets/background_menu.png").convert()
+        self._background_size = self.config.screen.get_size()
+        self.background = self._build_cover_background(self._raw_background, self._background_size)
         self.selection_index = 0
         self.items = ["Jugar", "Opciones", "Salir"]
         self.menu_positions = [
@@ -21,6 +23,33 @@ class MenuScene(Scene):
             (WIDTH / 2, HEIGHT / 2),
             (WIDTH / 2, (HEIGHT / 2) + 50),
         ]
+
+    def _build_cover_background(self, image: pygame.Surface, target_size: tuple[int, int]) -> pygame.Surface:
+        """Scale image to fully cover the render area without distortion."""
+        src_w, src_h = image.get_size()
+        dst_w, dst_h = target_size
+
+        if src_w == 0 or src_h == 0:
+            return pygame.Surface((dst_w, dst_h)).convert()
+
+        scale = max(dst_w / src_w, dst_h / src_h)
+        scaled_w = max(1, int(src_w * scale))
+        scaled_h = max(1, int(src_h * scale))
+        scaled = pygame.transform.smoothscale(image, (scaled_w, scaled_h))
+
+        offset_x = (scaled_w - dst_w) // 2
+        offset_y = (scaled_h - dst_h) // 2
+        cropped = pygame.Surface((dst_w, dst_h)).convert()
+        cropped.blit(scaled, (-offset_x, -offset_y))
+        return cropped
+
+    def _reload_background_if_needed(self) -> None:
+        current_size = self.config.screen.get_size()
+        if current_size == self._background_size:
+            return
+
+        self._background_size = current_size
+        self.background = self._build_cover_background(self._raw_background, current_size)
 
     def on_activate(self) -> None:
         self.config.main_channel.play(self.config.get_sound('menu'), loops=-1, fade_ms=100)
@@ -69,6 +98,7 @@ class MenuScene(Scene):
         pass
 
     def render(self) -> None:
+        self._reload_background_if_needed()
         self.config.screen.blit(self.background, (0, 0))
 
         for index, label in enumerate(self.items):

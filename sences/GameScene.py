@@ -40,8 +40,13 @@ class GameScene(Scene):
         self.smoke_list = self.context.smoke_list
         self.context.reset_player_state()
         self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in BACKGROUND_IMAGES]
+        self.background_loop_count = max(1, len(self.background_images) - 1)
+        self.final_background_index = len(self.background_images) - 1
+        self.final_background_trigger_level = 7
+        self.final_background_transition_started = False
+        self.final_background_active = False
         self.current_background_index = 0
-        self.next_background_index = 1 % len(self.background_images)
+        self.next_background_index = 1 % self.background_loop_count
         self.current_background = self.background_images[self.current_background_index]
         self.next_background = self.background_images[self.next_background_index]
         self.background_offset = 0.0
@@ -116,6 +121,7 @@ class GameScene(Scene):
 
         current_time = pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio
         self.player.update_shield(current_time)
+        self._check_final_background_transition()
         self._update_background(dt)
 
         self.player_controller.update()
@@ -131,9 +137,31 @@ class GameScene(Scene):
         self.collision_manager.handle_powerup_collisions()
         self.game_over = self.collision_manager.handle_player_collisions()
 
-        level_up = self.progression_manager.update(current_time, self.enemy_manager, self.tank_red_list, self.tank_green_list)
+        level_up = self.progression_manager.update(
+            current_time,
+            self.enemy_manager,
+            self.tank_red_list,
+            self.tank_green_list,
+            allow_enemy_spawn=not (
+                self.final_background_transition_started
+                or self.player.nivel >= self.final_background_trigger_level - 1
+            ),
+            allow_level_progression=not self.final_background_transition_started,
+        )
         if level_up and self.player.nivel % 3 == 0:
             self._spawn_shield_powerup()
+
+    def _check_final_background_transition(self) -> None:
+        if self.final_background_transition_started:
+            return
+
+        if self.player.nivel < self.final_background_trigger_level:
+            return
+
+        self.final_background_transition_started = True
+        self.next_background_index = self.final_background_index
+        self.next_background = self.background_images[self.next_background_index]
+        self.player_controller.set_top_limit(HEIGHT // 2)
 
     def _update_smoke_trail(self) -> None:
         vx = self.player.speed_x
@@ -205,6 +233,9 @@ class GameScene(Scene):
         return pygame.transform.smoothscale(background, (WIDTH, HEIGHT))
 
     def _update_background(self, dt: float) -> None:
+        if self.final_background_active:
+            return
+
         self.background_offset += self.background_scroll_speed * dt
 
         if self.background_offset < HEIGHT:
@@ -212,7 +243,18 @@ class GameScene(Scene):
 
         self.background_offset -= HEIGHT
         self.current_background_index = self.next_background_index
-        self.next_background_index = (self.current_background_index + 1) % len(self.background_images)
+        if self.final_background_transition_started and self.current_background_index == self.final_background_index:
+            self.final_background_active = True
+            self.background_offset = 0.0
+            self.current_background = self.background_images[self.final_background_index]
+            self.next_background = self.current_background
+            return
+
+        if self.final_background_transition_started:
+            self.next_background_index = self.final_background_index
+        else:
+            self.next_background_index = (self.current_background_index + 1) % self.background_loop_count
+
         self.current_background = self.background_images[self.current_background_index]
         self.next_background = self.background_images[self.next_background_index]
 

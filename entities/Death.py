@@ -2,18 +2,18 @@ import pygame
 
 
 class Death(pygame.sprite.Sprite):
+    _cached_frames: list[pygame.Surface] | None = None
 
     def __init__(self, x, y):
         super().__init__()
 
-        self.sprites = []
+        if Death._cached_frames is None:
+            Death._cached_frames = [
+                pygame.image.load(f"assets/TankExplosion/{i:04d}.png").convert_alpha()
+                for i in range(1, 16)
+            ]
 
-        for i in range(1, 16):
-            self.sprites.append(
-                pygame.image.load(
-                    f"assets/TankExplosion/{i:04d}.png"
-                )
-            )
+        self.sprites = Death._cached_frames
 
         self.is_animating = False
         self.current_sprite = 0
@@ -40,7 +40,7 @@ class Death(pygame.sprite.Sprite):
                 self.current_sprite += 1
 
             if self.current_sprite >= len(self.sprites):
-                self.current_sprite = -1
-                self.is_animating = False
+                self.kill()
+                return
 
             self.image = self.sprites[self.current_sprite]

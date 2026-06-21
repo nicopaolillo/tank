@@ -9,6 +9,7 @@ from config.Settings import (
     TANK_GREEN_KILL_POINTS,
     AIR_SUPPORT_RED_POINTS,
     AIR_SUPPORT_GREEN_POINTS,
+    PLAYER_MAX_SHIELDS,
 )
 from entities.Death import Death
 
@@ -89,7 +90,7 @@ class CollisionManager:
                     self.all_sprites.remove(powerup)
                 if powerup in self.powerup_list:
                     self.powerup_list.remove(powerup)
-                self.player.shield_inventory += 1
+                self.player.shield_inventory = min(self.player.shield_inventory + 1, PLAYER_MAX_SHIELDS)
                 self.config.get_sound("select").play()
 
     def _remove_shoot(self, shoot) -> None:

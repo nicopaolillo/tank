@@ -22,6 +22,10 @@ class PlayerController:
         self.shoot_list = shoot_list
         self.apoyo_list = apoyo_list
         self.last_fire_time = 0.0
+        self.min_top_bound = 0
+
+    def set_top_limit(self, min_top: int) -> None:
+        self.min_top_bound = max(0, min_top)
 
     def handle_keydown(self, event: pygame.event.EventType, elapsed_time: float) -> None:
         if event.key == pygame.K_LEFT:
@@ -62,8 +66,8 @@ class PlayerController:
             self.player.rect.right = PLAYER_BOUNDS_RIGHT
         if self.player.rect.left < PLAYER_BOUNDS_LEFT:
             self.player.rect.left = PLAYER_BOUNDS_LEFT
-        if self.player.rect.top < 0:
-            self.player.rect.top = 0
+        if self.player.rect.top < self.min_top_bound:
+            self.player.rect.top = self.min_top_bound
         if self.player.rect.bottom > HEIGHT:
             self.player.rect.bottom = HEIGHT
 
