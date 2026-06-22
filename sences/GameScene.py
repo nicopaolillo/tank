@@ -7,6 +7,7 @@ from config.Settings import GameConfig, BACKGROUND_IMAGES
 from GameContext import GameContext
 from entities.SmokeTrail import SmokeTrail
 from entities.ShieldPowerUp import ShieldPowerUp
+from entities.Bombardier import Bombardier
 from entities.Tank import Tank, Tank_green
 from sences.Scene import Scene
 from ui.hud import HudManager as Hud
@@ -21,6 +22,10 @@ from config.Settings import (
     GREEN_TEXT,
     DARK_GREEN_TEXT,
     RED_TEXT,
+    BOMBARDIER_WATER_TOP,
+    BOMBARDIER_WATER_BOTTOM,
+    BOMBARDIER_LEFT_BOUND,
+    BOMBARDIER_RIGHT_BOUND,
 )
 
 
@@ -35,14 +40,17 @@ class GameScene(Scene):
         self.tank_red_list = self.context.tank_red_list
         self.tank_green_list = self.context.tank_green_list
         self.shoot_list = self.context.shoot_list
+        self.enemy_shoot_list = self.context.enemy_shoot_list
         self.apoyo_list = self.context.apoyo_list
         self.crash_list = self.context.crash_list
         self.smoke_list = self.context.smoke_list
+        self.bombardier_list = self.context.bombardier_list
         self.context.reset_player_state()
         self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in BACKGROUND_IMAGES]
         self.background_loop_count = max(1, len(self.background_images) - 1)
         self.final_background_index = len(self.background_images) - 1
-        self.final_background_trigger_level = 7
+        # TEMP for faster boss iteration during development; restore to 7 later.
+        self.final_background_trigger_level = 2
         self.final_background_transition_started = False
         self.final_background_active = False
         self.current_background_index = 0
@@ -53,7 +61,18 @@ class GameScene(Scene):
         self.background_scroll_speed = 80.0
         self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
         self.enemy_manager = EnemyManager(self.all_sprites, self.tank_red_list, self.tank_green_list)
-        self.collision_manager = CollisionManager(config, self.player, self.all_sprites, self.shoot_list, self.tank_red_list, self.tank_green_list, self.apoyo_list, self.context.powerup_list)
+        self.collision_manager = CollisionManager(
+            config,
+            self.player,
+            self.all_sprites,
+            self.shoot_list,
+            self.tank_red_list,
+            self.tank_green_list,
+            self.apoyo_list,
+            self.context.powerup_list,
+            self.bombardier_list,
+            self.enemy_shoot_list,
+        )
         self.progression_manager = ProgressionManager(self.player)
         self.game_over = False
         self.pause = False
@@ -134,6 +153,7 @@ class GameScene(Scene):
         self.collision_manager.handle_red_tank_shots()
         self.collision_manager.handle_air_support_collisions()
         self.collision_manager.handle_green_tank_shots()
+        self.collision_manager.handle_bombardier_shots()
         self.collision_manager.handle_powerup_collisions()
         self.game_over = self.collision_manager.handle_player_collisions()
 
@@ -150,6 +170,9 @@ class GameScene(Scene):
         )
         if level_up and self.player.nivel % 3 == 0:
             self._spawn_shield_powerup()
+
+        if self.final_background_active:
+            self._ensure_bombardier()
 
     def _check_final_background_transition(self) -> None:
         if self.final_background_transition_started:
@@ -258,6 +281,26 @@ class GameScene(Scene):
         self.current_background = self.background_images[self.current_background_index]
         self.next_background = self.background_images[self.next_background_index]
 
+    def _ensure_bombardier(self) -> None:
+        if len(self.bombardier_list) > 0:
+            return
+
+        water_top = max(0, BOMBARDIER_WATER_TOP)
+        water_bottom = min(HEIGHT // 2, BOMBARDIER_WATER_BOTTOM)
+        y_position = max(water_top + 30, min((water_top + water_bottom) // 2, HEIGHT // 2 - 30))
+        y_position = max(water_top + 30, y_position - 70)
+
+        bombardier = Bombardier(
+            enemy_shoot_list=self.enemy_shoot_list,
+            all_sprites=self.all_sprites,
+            target=self.player,
+            left_bound=max(0, BOMBARDIER_LEFT_BOUND),
+            right_bound=min(WIDTH, BOMBARDIER_RIGHT_BOUND),
+            y_position=y_position,
+        )
+        self.bombardier_list.add(bombardier)
+        self.all_sprites.add(bombardier)
+
     def _spawn_shield_powerup(self) -> None:
         powerup = ShieldPowerUp()
         self.all_sprites.add(powerup)
@@ -324,7 +367,8 @@ class GameScene(Scene):
     def render(self) -> None:
         if not self.game_over:
             self._render_background(0)
-            self.all_sprites.update()
+            if not self.pause:
+                self.all_sprites.update()
             self.smoke_list.draw(self.config.screen)
             self.all_sprites.draw(self.config.screen)
 

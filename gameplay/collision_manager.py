@@ -10,13 +10,28 @@ from config.Settings import (
     AIR_SUPPORT_RED_POINTS,
     AIR_SUPPORT_GREEN_POINTS,
     PLAYER_MAX_SHIELDS,
+    BOMBARDIER_HIT_DAMAGE,
+    BOMBARDIER_KILL_POINTS,
+    BOMBARDIER_PROJECTILE_DAMAGE,
 )
 from entities.Death import Death
 
 
 class CollisionManager:
 
-    def __init__(self, config, player, all_sprites, shoot_list, tank_red_list, tank_green_list, apoyo_list, powerup_list):
+    def __init__(
+        self,
+        config,
+        player,
+        all_sprites,
+        shoot_list,
+        tank_red_list,
+        tank_green_list,
+        apoyo_list,
+        powerup_list,
+        bombardier_list,
+        enemy_shoot_list,
+    ):
         self.config = config
         self.player = player
         self.all_sprites = all_sprites
@@ -25,6 +40,8 @@ class CollisionManager:
         self.tank_green_list = tank_green_list
         self.apoyo_list = apoyo_list
         self.powerup_list = powerup_list
+        self.bombardier_list = bombardier_list
+        self.enemy_shoot_list = enemy_shoot_list
 
     def handle_red_tank_shots(self) -> None:
         for shoot in list(self.shoot_list):
@@ -81,7 +98,27 @@ class CollisionManager:
             return True
         if self._handle_green_tank_collision():
             return True
+        if self._handle_enemy_projectile_collision():
+            return True
         return False
+
+    def handle_bombardier_shots(self) -> None:
+        for shoot in list(self.shoot_list):
+            hits = pygame.sprite.spritecollide(shoot, self.bombardier_list, False)
+            if not hits:
+                continue
+
+            self._remove_shoot(shoot)
+            for boat in hits:
+                if boat.take_damage(BOMBARDIER_HIT_DAMAGE):
+                    death = Death(boat.rect.x, boat.rect.y)
+                    death.animate()
+                    self.all_sprites.add(death)
+                    boat.kill()
+                    self.player.puntaje += BOMBARDIER_KILL_POINTS
+                    self.config.get_sound("explosion").play()
+                else:
+                    self.config.get_sound("iron").play()
 
     def handle_powerup_collisions(self) -> None:
         for powerup in list(self.powerup_list):
@@ -130,4 +167,24 @@ class CollisionManager:
                 if self.player in self.all_sprites:
                     self.all_sprites.remove(self.player)
                 return True
+        return False
+
+    def _handle_enemy_projectile_collision(self) -> bool:
+        hits = pygame.sprite.spritecollide(self.player, self.enemy_shoot_list, True)
+        if not hits:
+            return False
+
+        if self.player.shield_active:
+            return False
+
+        self.player.hp -= BOMBARDIER_PROJECTILE_DAMAGE * len(hits)
+        death = Death(self.player.rect.x, self.player.rect.y)
+        death.animate()
+        self.all_sprites.add(death)
+        self.config.get_sound("explosion").play()
+
+        if self.player.hp <= 0 and self.player in self.all_sprites:
+            self.all_sprites.remove(self.player)
+            return True
+
         return False
