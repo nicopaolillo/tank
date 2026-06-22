@@ -3,8 +3,7 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, WIDTH, HEIGHT, RED_TEXT
-from ui.hud import HudManager as Hud
+from config.Settings import GameConfig, WIDTH, HEIGHT, GREEN_TEXT, DARK_GREEN_TEXT
 from sences.Scene import Scene
 
 
@@ -18,11 +17,6 @@ class MenuScene(Scene):
         self.background = self._build_cover_background(self._raw_background, self._background_size)
         self.selection_index = 0
         self.items = ["Jugar", "Opciones", "Salir"]
-        self.menu_positions = [
-            (WIDTH / 2, (HEIGHT / 2) - 50),
-            (WIDTH / 2, HEIGHT / 2),
-            (WIDTH / 2, (HEIGHT / 2) + 50),
-        ]
 
     def _build_cover_background(self, image: pygame.Surface, target_size: tuple[int, int]) -> pygame.Surface:
         """Scale image to fully cover the render area without distortion."""
@@ -101,10 +95,29 @@ class MenuScene(Scene):
         self._reload_background_if_needed()
         self.config.screen.blit(self.background, (0, 0))
 
+        center_x = WIDTH // 2
+        center_y = HEIGHT // 2
+        spacing_y = 56
+
         for index, label in enumerate(self.items):
-            x, y = self.menu_positions[index]
-            Hud.simple_show_text(self.config.screen, self.config.font_small, label, x, y)
+            item_y = center_y + (index - 1) * spacing_y
+            color = GREEN_TEXT if index == self.selection_index else DARK_GREEN_TEXT
+            text_surface = self.config.font_small.render(label, True, color)
+            text_rect = text_surface.get_rect(center=(center_x, item_y))
+            self.config.screen.blit(text_surface, text_rect)
+
             if index == self.selection_index:
-                pygame.draw.rect(self.config.screen, RED_TEXT, (x, y, 150, 30), 1)
+                arrow_x = text_rect.left - 32
+                arrow_y = text_rect.centery
+                # Dark green selector arrow at the left side of the active item.
+                pygame.draw.polygon(
+                    self.config.screen,
+                    DARK_GREEN_TEXT,
+                    [
+                        (arrow_x, arrow_y),
+                        (arrow_x - 16, arrow_y - 10),
+                        (arrow_x - 16, arrow_y + 10),
+                    ],
+                )
 
         self.config.present()

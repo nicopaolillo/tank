@@ -1,7 +1,10 @@
 import pygame
 import random
 
-from config.Settings import HEIGHT, WIDTH
+from config.Settings import HEIGHT, PLAYER_BOUNDS_LEFT, PLAYER_BOUNDS_RIGHT
+
+
+POWERUP_SIZE = 58
 
 
 class ShieldPowerUp(pygame.sprite.Sprite):
@@ -10,11 +13,13 @@ class ShieldPowerUp(pygame.sprite.Sprite):
         super().__init__()
 
         shield_image = pygame.image.load('assets/shieldArmy.png').convert_alpha()
-        self.image = pygame.transform.smoothscale(shield_image, (48, 48))
+        self.image = pygame.transform.smoothscale(shield_image, (POWERUP_SIZE, POWERUP_SIZE))
 
         self.rect = self.image.get_rect()
-        self.rect.x = random.randrange(220, WIDTH - 60)
-        self.rect.y = -48
+        spawn_left = PLAYER_BOUNDS_LEFT
+        spawn_right = PLAYER_BOUNDS_RIGHT - self.rect.width
+        self.rect.x = random.randrange(spawn_left, spawn_right + 1)
+        self.rect.y = -self.rect.height
 
     def update(self):
         self.rect.y += 2

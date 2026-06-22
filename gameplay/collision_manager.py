@@ -10,7 +10,7 @@ from config.Settings import (
     AIR_SUPPORT_RED_POINTS,
     AIR_SUPPORT_GREEN_POINTS,
     PLAYER_MAX_SHIELDS,
-    BOMBARDIER_HIT_DAMAGE,
+    BOMBARDIER_PLAYER_SHOT_DAMAGE,
     BOMBARDIER_KILL_POINTS,
     BOMBARDIER_PROJECTILE_DAMAGE,
 )
@@ -110,15 +110,19 @@ class CollisionManager:
 
             self._remove_shoot(shoot)
             for boat in hits:
-                if boat.take_damage(BOMBARDIER_HIT_DAMAGE):
-                    death = Death(boat.rect.x, boat.rect.y)
-                    death.animate()
-                    self.all_sprites.add(death)
-                    boat.kill()
+                if getattr(boat, "is_destroyed", False):
+                    continue
+
+                # Spawn damage feedback each time a player shot lands on Bombardier.
+                hit_fx = Death(boat.rect.centerx, boat.rect.centery)
+                hit_fx.animate()
+                self.all_sprites.add(hit_fx)
+
+                if boat.take_damage(BOMBARDIER_PLAYER_SHOT_DAMAGE):
                     self.player.puntaje += BOMBARDIER_KILL_POINTS
                     self.config.get_sound("explosion").play()
                 else:
-                    self.config.get_sound("iron").play()
+                    self.config.get_sound("explosion").play()
 
     def handle_powerup_collisions(self) -> None:
         for powerup in list(self.powerup_list):

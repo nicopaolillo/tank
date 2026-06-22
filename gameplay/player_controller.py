@@ -21,7 +21,7 @@ class PlayerController:
         self.all_sprites = all_sprites
         self.shoot_list = shoot_list
         self.apoyo_list = apoyo_list
-        self.last_fire_time = 0.0
+        self.last_fire_time = -MISSILE_FIRE_COOLDOWN
         self.min_top_bound = 0
 
     def set_top_limit(self, min_top: int) -> None:

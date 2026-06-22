@@ -92,7 +92,7 @@ class HudManager:
         screen.blit(text2, (x2, y2))
 
     @staticmethod
-    def draw_game_hud(screen: pygame.Surface, font: pygame.font.Font, player) -> None:
+    def draw_game_hud(screen: pygame.Surface, font: pygame.font.Font, player, bombardier=None) -> None:
         health_icon = HudManager._get_health_icon_small()
         if health_icon is not None:
             screen.blit(health_icon, (0, 58))
@@ -115,6 +115,27 @@ class HudManager:
 
         if player.shield_active:
             HudManager.simple_show_text(screen, font, "Escudo activo", 0, 420)
+
+        if bombardier is not None and getattr(bombardier, "alive", lambda: False)():
+            screen_width = screen.get_width()
+            bombardier_hp = max(0, int(getattr(bombardier, "hp", 0)))
+
+            # Use current Bombardier frame so the HUD icon matches in-game visuals.
+            icon_src = bombardier.image
+            icon_bounds = icon_src.get_bounding_rect(min_alpha=1)
+            if icon_bounds.width > 0 and icon_bounds.height > 0:
+                icon_src = icon_src.subsurface(icon_bounds).copy()
+            bombardier_icon = pygame.transform.smoothscale(icon_src, (34, 34))
+
+            icon_x = screen_width - 38
+            icon_y = 58
+            screen.blit(bombardier_icon, (icon_x, icon_y))
+
+            hp_text = font.render(str(bombardier_hp), True, (173, 255, 47))
+            hp_rect = hp_text.get_rect()
+            hp_rect.top = 60
+            hp_rect.right = icon_x - 8
+            screen.blit(hp_text, hp_rect)
 
         HudManager.show_text(screen, font, "Puntaje: ", player.puntaje, 0, 480, 140, 480)
 

@@ -49,10 +49,10 @@ class GameScene(Scene):
         self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in BACKGROUND_IMAGES]
         self.background_loop_count = max(1, len(self.background_images) - 1)
         self.final_background_index = len(self.background_images) - 1
-        # TEMP for faster boss iteration during development; restore to 7 later.
-        self.final_background_trigger_level = 2
+        self.final_background_trigger_level = 7
         self.final_background_transition_started = False
         self.final_background_active = False
+        self.bombardier_defeated = False
         self.current_background_index = 0
         self.next_background_index = 1 % self.background_loop_count
         self.current_background = self.background_images[self.current_background_index]
@@ -156,6 +156,12 @@ class GameScene(Scene):
         self.collision_manager.handle_bombardier_shots()
         self.collision_manager.handle_powerup_collisions()
         self.game_over = self.collision_manager.handle_player_collisions()
+
+        if not self.bombardier_defeated:
+            self.bombardier_defeated = any(
+                getattr(bombardier, "is_destroyed", False)
+                for bombardier in self.bombardier_list
+            )
 
         level_up = self.progression_manager.update(
             current_time,
@@ -282,6 +288,9 @@ class GameScene(Scene):
         self.next_background = self.background_images[self.next_background_index]
 
     def _ensure_bombardier(self) -> None:
+        if self.bombardier_defeated:
+            return
+
         if len(self.bombardier_list) > 0:
             return
 
@@ -377,7 +386,10 @@ class GameScene(Scene):
                 pygame.draw.ellipse(shield_surf, (0, 150, 255, 100), shield_surf.get_rect(), 4)
                 self.config.screen.blit(shield_surf, (self.player.rect.x - 12, self.player.rect.y - 12))
 
-            Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player)
+            active_bombardier = self.bombardier_list.sprites()[0] if len(self.bombardier_list) > 0 else None
+            if active_bombardier is not None and getattr(active_bombardier, "is_destroyed", False):
+                active_bombardier = None
+            Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player, active_bombardier)
 
             # Debug overlay: show FPS and player position only when toggled
             if self.show_debug:
