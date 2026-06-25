@@ -551,8 +551,7 @@ class Bombardier(pygame.sprite.Sprite):
         frames: list[pygame.Surface] = []
         for phase in range(frame_count):
             frame = pygame.Surface(canvas_size, pygame.SRCALPHA)
-
-        BombardierSinkingEffect._get_frames()
+        
             # Draw multiple animated rings to fake water ripples around hull.
             for ring in range(3):
                 t = ((phase + ring * 2) % frame_count) / frame_count
