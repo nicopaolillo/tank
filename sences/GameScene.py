@@ -84,12 +84,15 @@ class GameScene(Scene):
         # normalize timing to seconds
         self.tiempo_inicio = pygame.time.get_ticks() / 1000.0
         self.show_debug = False
+        self._current_engine = None
 
     def on_activate(self) -> None:
         self.config.game_channel.play(self.config.get_sound('game'), loops=-1, fade_ms=100)
 
     def on_deactivate(self) -> None:
         self.config.game_channel.stop()
+        self.config.engine_channel.stop()
+        self._current_engine = None
 
     def handle_events(self, events: list[pygame.event.EventType]) -> None:
         tiempoTranscurrido = pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio
@@ -145,6 +148,7 @@ class GameScene(Scene):
 
         self.player_controller.update()
         self.player_controller.clamp_bounds()
+        self._update_engine_sound()
         self.enemy_manager.update()
         self._update_smoke_trail()
         self._update_enemy_smoke_trails()
@@ -250,6 +254,17 @@ class GameScene(Scene):
         for tid in stale_ids:
             del self._enemy_last_smoke_spawn_ms[tid]
 
+    def _update_engine_sound(self) -> None:
+        moving = self.player.speed_x != 0 or self.player.speed_y != 0
+        if moving and self._current_engine != 'engine_2':
+            self.config.engine_channel.stop()
+            self.config.engine_channel.play(self.config.get_sound('engine_2'), loops=-1)
+            self._current_engine = 'engine_2'
+        elif not moving and self._current_engine != 'engine':
+            self.config.engine_channel.stop()
+            self.config.engine_channel.play(self.config.get_sound('engine'), loops=-1)
+            self._current_engine = 'engine'
+
     def _render_background(self, y: float) -> float:
         current_y = self.background_offset
         next_y = current_y - HEIGHT
@@ -320,6 +335,8 @@ class GameScene(Scene):
         if not self._game_over_shown:
             self.config.gameover_channel.play(self.config.get_sound('gameover'), loops=0, fade_ms=0)
             self.config.game_channel.stop()
+            self.config.engine_channel.stop()
+            self._current_engine = None
             self._game_over_shown = True
 
     def _draw_game_over_overlay(self) -> None:

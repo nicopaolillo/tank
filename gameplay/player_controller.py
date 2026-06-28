@@ -78,6 +78,7 @@ class PlayerController:
         self.all_sprites.add(apoyo)
         self.apoyo_list.add(apoyo)
         self.player.apoyo -= 1
+        self.config.get_sound("plane").play()
 
     def _try_shoot(self, elapsed_time: float) -> None:
         time_since_last = elapsed_time - self.last_fire_time

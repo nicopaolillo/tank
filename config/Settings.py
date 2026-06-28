@@ -57,10 +57,12 @@ SOUNDS = {
     'menu': 'sound/main.ogg',
     'gameover': 'sound/gameover.ogg',
     'engine': 'sound/engine.ogg',
+    'engine_2': 'sound/engine_2.ogg',
     'explosion': 'sound/explosion.ogg',
-    'shoot': 'sound/shoot.ogg',
+    'shoot': 'sound/shot_1.ogg',
     'iron': 'sound/iron_sound.ogg',
     'select': 'sound/selection.ogg',
+    'plane': 'sound/plane.ogg',
 }
 
 # Asset paths
@@ -121,7 +123,13 @@ class GameConfig:
         self.options_channel = pygame.mixer.Channel(1)
         self.main_channel = pygame.mixer.Channel(2)
         self.gameover_channel = pygame.mixer.Channel(3)
+        self.engine_channel = pygame.mixer.Channel(4)
         
+        # Volume levels (0.0 – 1.0)
+        self.master_volume = 1.0
+        self.music_volume = 1.0
+        self.effects_volume = 1.0
+
         # Sounds (loaded on demand to avoid blocking)
         self._sounds = {}
         self._player_sprite_cache = {}
@@ -146,11 +154,35 @@ class GameConfig:
         self.window.blit(scaled_frame, self._display_rect.topleft)
         pygame.display.flip()
     
+    MUSIC_KEYS = frozenset({'game', 'options', 'menu', 'gameover'})
+    EFFECTS_KEYS = frozenset({'engine', 'engine_2', 'explosion', 'shoot', 'iron', 'select', 'plane'})
+
+    def _sound_category(self, key: str) -> str:
+        if key in self.MUSIC_KEYS:
+            return 'music'
+        return 'effects'
+
+    def _effective_volume(self, key: str) -> float:
+        cat = self._sound_category(key)
+        if cat == 'music':
+            return self.master_volume * self.music_volume
+        return self.master_volume * self.effects_volume
+
+    def _apply_sound_volume(self, key: str) -> None:
+        sound = self._sounds.get(key)
+        if sound is not None:
+            sound.set_volume(self._effective_volume(key))
+
+    def apply_volumes(self) -> None:
+        for key in list(self._sounds):
+            self._apply_sound_volume(key)
+
     def get_sound(self, key: str) -> pygame.mixer.Sound:
         """Load and cache sounds on demand."""
         if key not in self._sounds:
             if key in SOUNDS:
                 self._sounds[key] = pygame.mixer.Sound(SOUNDS[key])
+                self._apply_sound_volume(key)
         return self._sounds.get(key)
     
     def get_player_sprite(self, direction: str = 'default') -> pygame.Surface:

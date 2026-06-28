@@ -9,6 +9,9 @@ from sences.Scene import Scene
 
 class OptionsScene(Scene):
 
+    AUDIO_ITEMS = ["general", "música", "efectos", "atrás"]
+    MAIN_ITEMS = ["Video", "Sonido", "Atrás"]
+
     def __init__(self, config: GameConfig, scene_manager):
         super().__init__(config)
         self.scene_manager = scene_manager
@@ -16,7 +19,11 @@ class OptionsScene(Scene):
         self._background_size = self.config.screen.get_size()
         self.background = self._build_cover_background(self._raw_background,self._background_size)
         self.selection_index = 0
-        self.items = ["Video", "Sonido", "Atrás"]
+        self._audio_mode = False
+
+    @property
+    def items(self) -> list[str]:
+        return self.AUDIO_ITEMS if self._audio_mode else self.MAIN_ITEMS
 
     def on_activate(self) -> None:
         self.config.options_channel.play(self.config.get_sound('options'), loops=-1, fade_ms=100)
@@ -32,21 +39,52 @@ class OptionsScene(Scene):
 
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self._go_back()
+                    self.config.get_sound('select').play()
+                    if self._audio_mode:
+                        self._audio_mode = False
+                        self.selection_index = 0
+                    else:
+                        self._go_back()
                 elif event.key == pygame.K_UP:
                     self.config.get_sound('select').play()
                     self.selection_index = (self.selection_index - 1) % len(self.items)
                 elif event.key == pygame.K_DOWN:
                     self.config.get_sound('select').play()
                     self.selection_index = (self.selection_index + 1) % len(self.items)
+                elif event.key == pygame.K_LEFT:
+                    if self._audio_mode:
+                        self._adjust_volume(-0.1)
+                elif event.key == pygame.K_RIGHT:
+                    if self._audio_mode:
+                        self._adjust_volume(0.1)
                 elif event.key == pygame.K_RETURN:
                     self.config.get_sound('select').play()
                     self._execute_selected()
 
+    def _adjust_volume(self, delta: float) -> None:
+        choice = self.items[self.selection_index]
+        if choice == "general":
+            self.config.master_volume = max(0.0, min(1.0, self.config.master_volume + delta))
+        elif choice == "música":
+            self.config.music_volume = max(0.0, min(1.0, self.config.music_volume + delta))
+        elif choice == "efectos":
+            self.config.effects_volume = max(0.0, min(1.0, self.config.effects_volume + delta))
+        else:
+            return
+        self.config.apply_volumes()
+
     def _execute_selected(self) -> None:
         choice = self.items[self.selection_index]
-        if choice == "Atrás":
-            self._go_back()
+        if self._audio_mode:
+            if choice == "atrás":
+                self._audio_mode = False
+                self.selection_index = 0
+        else:
+            if choice == "Sonido":
+                self._audio_mode = True
+                self.selection_index = 0
+            elif choice == "Atrás":
+                self._go_back()
 
     def _go_back(self) -> None:
         from sences.MenuScene import MenuScene
@@ -90,8 +128,31 @@ class OptionsScene(Scene):
                         (arrow_x - 16, arrow_y + 10),
                     ],
                 )
-                
+
+            if self._audio_mode and label in ("general", "música", "efectos"):
+                self._draw_slider(text_rect.right + 16, text_rect.centery, label)
+
         self.config.present()
+
+    def _draw_slider(self, x: int, cy: int, label: str) -> None:
+        if label == "general":
+            value = self.config.master_volume
+        elif label == "música":
+            value = self.config.music_volume
+        elif label == "efectos":
+            value = self.config.effects_volume
+        else:
+            return
+
+        bar_w = 160
+        bar_h = 12
+        bar_x = x
+        bar_y = cy - bar_h // 2
+
+        pygame.draw.rect(self.config.screen, DARK_GREEN_TEXT, (bar_x, bar_y, bar_w, bar_h))
+        fill_w = int(bar_w * value)
+        if fill_w > 0:
+            pygame.draw.rect(self.config.screen, GREEN_TEXT, (bar_x, bar_y, fill_w, bar_h))
     
     def _build_cover_background(
     self, image: pygame.Surface, target_size: tuple[int, int]) -> pygame.Surface:

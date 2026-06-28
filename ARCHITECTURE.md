@@ -1,0 +1,288 @@
+# Tank Game — Documentación de Arquitectura
+
+## 1. Descripción General
+
+**Tank Game** es un videojuego de acción tipo arcade shooter desarrollado en **Python 3** con **Pygame**. El jugador controla un tanque, elimina oleadas de tanques enemigos rojos y verdes que caen desde arriba, acumula puntaje, sube de nivel, recolecta power-ups de escudo y enfrenta un jefe final (bombardero/barco).
+
+---
+
+## 2. Estructura del Proyecto
+
+```
+tank-master/
+├── game.py                  # Punto de entrada principal
+├── GameContext.py            # Estado global del juego
+├── config/
+│   └── Settings.py           # Constantes + clase GameConfig
+├── entities/
+│   ├── Player.py             # Tanque del jugador
+│   ├── Tank.py               # Tanques enemigos (rojo y verde)
+│   ├── Shooting.py           # Proyectiles del jugador
+│   ├── AirSupport.py         # Apoyo aéreo (avión)
+│   ├── Bombardier.py         # Jefe final (bombardero/barco)
+│   ├── FinalBossBoat.py      # Variante del jefe final
+│   ├── Death.py              # Animación de explosión
+│   ├── SmokeTrail.py         # Estela de humo
+│   └── ShieldPowerUp.py      # Power-up de escudo
+├── gameplay/
+│   ├── __init__.py
+│   ├── player_controller.py  # Control del jugador (input, movimiento, disparo)
+│   ├── enemy_manager.py      # Gestión de enemigos (spawn, actualización)
+│   ├── collision_manager.py  # Detección de colisiones y daño
+│   └── progression_manager.py # Progresión de niveles y recarga
+├── sences/                   # Sistema de escenas (state)
+│   ├── __init__.py
+│   ├── Scene.py              # Clase base abstracta
+│   ├── SceneManager.py       # Administrador de escenas (state machine)
+│   ├── MenuScene.py          # Escena del menú principal
+│   ├── OptionsScene.py       # Escena de opciones
+│   └── GameScene.py          # Escena principal del juego
+├── ui/
+│   ├── __init__.py
+│   └── hud.py                # HUD del juego
+├── assets/                   # Sprites, fondos, animaciones (~60 archivos)
+│   ├── background_menu.png
+│   ├── background_lvl1_A.png ... D.png
+│   ├── player_main.png, player_left.png, etc.
+│   ├── tank_red.png, tank_green.png
+│   ├── avion.png, bullet.png, shieldArmy.png
+│   ├── TankExplosion/        # 16 frames de explosión
+│   ├── SmokeFrames/          # 24 frames de estela de humo
+│   ├── bombardier_lvl1/      # Sprites del jefe bombardero
+│   └── ...
+└── sound/                    # 12 OGGs: engine, engine_2, explosion, gameover, iron_sound, main, options, plane, selection, shoot, shot_1, song
+```
+
+---
+
+## 3. Tecnologías
+
+| Componente | Tecnología |
+|---|---|
+| Lenguaje | Python 3 (type hints con `from __future__ import annotations`) |
+| Framework gráfico | Pygame (SDL2 wrapper) |
+| Sprites | PNG / JPG |
+| Audio | OGG Vorbis |
+| Entorno objetivo | Windows |
+
+---
+
+## 4. Patrones de Diseño
+
+| Patrón | Ubicación |
+|---|---|
+| **State** | Sistema de escenas: `SceneManager` + `Scene` (MenuScene, GameScene, OptionsScene) |
+| **Singleton / Flyweight (caché)** | Atributos de clase `_frames_cache` en `Bombardier`, `FinalBossBoat`, `BoatProjectile`, `SmokeTrail`, `Death`, `HudManager` |
+| **Game Loop** | `game.py`: eventos → update → render a 60 FPS |
+| **Double Buffer** | Pygame: superficie virtual → escalado → ventana real |
+| **Manager** | Controladores separados para input, enemigos, colisiones, progresión |
+| **Componente** | `GameContext` como contenedor de estado global |
+
+---
+
+## 5. Flujo de Ejecución
+
+### 5.1 Entry Point (`game.py`)
+
+```python
+config = GameConfig()
+scene_manager = SceneManager(config)
+menu_scene = MenuScene(config, scene_manager)
+scene_manager.change_scene(menu_scene)
+
+while True:
+    events = pygame.event.get()
+    scene_manager.handle_events(events)
+    scene_manager.update(config.clock.get_time() / 1000.0)
+    scene_manager.render()
+    config.clock.tick(TARGET_FPS)  # 60 FPS
+```
+
+### 5.2 Ciclo por Frame
+
+```
+1. Eventos
+   → SceneManager.handle_events(events)
+      → GameScene.handle_events()
+         → PlayerController.handle_keydown() / handle_keyup()
+            → Modifica player.speed_x, .speed_y, .facing
+            → Dispara proyectiles: Shooting() → shoot_list + all_sprites
+            → Activa apoyo aéreo: AirSupport()
+            → Activa escudo: player.activate_shield()
+
+2. Update (dt)
+   → GameScene.update(dt)
+      → PlayerController.update() + clamp_bounds()
+      → EnemyManager.update()            # mueve enemigos verticalmente
+      → SmokeTrail generation            # estela detrás de entidades
+      → CollisionManager.handle_*()      # 5 tipos de colisión
+         → aplica daño, suma puntaje, spawn Death(), reproduce sonidos
+      → ProgressionManager.update()      # recarga misiles, sube nivel, spawn
+      → Background scroll                # desplaza fondos en bucle
+      → Bombardier spawn/update          # nivel >= 7 aparece el jefe
+
+3. Render
+   → GameScene.render()
+      → Fondo (2 capas con scroll)
+      → smoke_list.draw() + all_sprites.draw()
+      → Escudo si activo
+      → HudManager.draw_game_hud()       # HP, misiles, puntaje, HP jefe
+      → config.present()                 # escala superficie virtual → ventana real
+```
+
+### 5.3 Transiciones de Escena
+
+```
+MenuScene (Jugar) → GameScene
+MenuScene (Opciones) → OptionsScene → (Atrás) → MenuScene
+GameScene (Game Over + R) → GameScene (reinicio)
+GameScene (ESC) → salir del juego
+```
+
+---
+
+## 6. Componentes Principales
+
+### 6.1 Config (`config/Settings.py`)
+
+- **Constantes globales**: dimensiones (1000×700), colores, HP, velocidad, daño, puntajes, rutas de assets/sonidos.
+- **Clase `GameConfig`**: inicializa Pygame, ventana, superficies de render, canales de audio, fuentes. Métodos auxiliares: `get_sound()`, `get_player_sprite()`, `present()` (escala y presenta el frame). Incluye sistema de volumen con tres niveles (master, música, efectos) y categorización automática de sonidos mediante `MUSIC_KEYS`/`EFFECTS_KEYS`.
+
+### 6.2 Estado Global (`GameContext.py`)
+
+Contenedor que inicializa:
+- Grupos de sprites: `tank_red_list`, `tank_green_list`, `shoot_list`, `enemy_shoot_list`, `crash_list`, `apoyo_list`, `powerup_list`, `smoke_list`, `bombardier_list`, `all_sprites`
+- Instancia del jugador (`Player`)
+- Tanques iniciales
+- Método `reset_player_state()`
+
+### 6.3 Sistema de Escenas (`sences/`)
+
+- **`Scene`** — Abstract Base Class. Define interfaz: `handle_events()`, `update()`, `render()`, `on_activate()`, `on_deactivate()`.
+- **`SceneManager`** — Mantiene la escena activa, delega eventos/update/render. `change_scene()` gestiona ciclo de vida.
+- **`MenuScene`** — Menú con "Jugar", "Opciones", "Salir". Fondo con escalado cover, sonido de menú.
+- **`OptionsScene`** — Opciones principales ("Video", "Sonido", "Atrás"). Al seleccionar "Sonido" se despliega un submenú con controles de volumen: "general" (maestro), "música" (song.ogg, main.ogg, options.ogg, gameover.ogg), "efectos" (disparo, explosión, motor, avión, etc.) — cada uno con barra deslizadora ajustable con ←/→.
+- **`GameScene`** — Escena principal (~430 líneas). Orquesta todos los managers (PlayerController, EnemyManager, CollisionManager, ProgressionManager). Gestiona el sonido del motor en bucle según el movimiento del jugador (engine.ogg quieto / engine_2.ogg en movimiento).
+
+### 6.4 Entidades (`entities/`)
+
+Todas heredan de `pygame.sprite.Sprite`:
+
+| Clase | Archivo | Propósito |
+|---|---|---|
+| `Player` | `Player.py` | Tanque del jugador: HP, nivel, misiles, puntaje, escudos, movimiento |
+| `Tank` | `Tank.py` | Tanque enemigo rojo. Se mueve verticalmente |
+| `Tank_green` | `Tank.py` | Tanque enemigo verde (hereda de Tank). Más daño |
+| `Shooting` | `Shooting.py` | Proyectil del jugador. Se destruye al salir de pantalla |
+| `AirSupport` | `AirSupport.py` | Avión de apoyo aéreo que vuela hacia arriba |
+| `Bombardier` | `Bombardier.py` | Jefe final (~699 líneas). Navegación horizontal, dispara proyectiles, animación de muerte y hundimiento |
+| `FinalBossBoat` | `FinalBossBoat.py` | Variante casi idéntica al Bombardier |
+| `BoatProjectile` | `Bombardier.py` / `FinalBossBoat.py` | Proyectil del jefe. Animado, persigue al jugador |
+| `BombardierSinkingEffect` | `Bombardier.py` | Efecto de hundimiento al derrotar al jefe |
+| `Death` | `Death.py` | Animación de explosión (16 frames) |
+| `SmokeTrail` | `SmokeTrail.py` | Estela de humo animada (24 frames) |
+| `ShieldPowerUp` | `ShieldPowerUp.py` | Power-up de escudo que cae desde arriba |
+
+### 6.5 Lógica de Juego (`gameplay/`)
+
+| Clase | Archivo | Responsabilidad |
+|---|---|---|
+| `PlayerController` | `player_controller.py` | Input del teclado (movimiento, disparo, apoyo aéreo con sonido plane.ogg, escudo). Restringe límites |
+| `EnemyManager` | `enemy_manager.py` | Actualiza posición de enemigos. `spawn_level(level)` crea oleadas |
+| `CollisionManager` | `collision_manager.py` | Centraliza TODAS las colisiones (proyectiles vs enemigos, jugador vs enemigos, power-ups, etc.) |
+| `ProgressionManager` | `progression_manager.py` | Recarga misiles cada 3s. Detecta oleadas limpiadas, sube nivel, cura, spawn |
+
+### 6.6 Interfaz de Usuario (`ui/hud.py`)
+
+**`HudManager`** (métodos estáticos con caché de iconos):
+- Dibuja: vida, misiles, apoyo aéreo, escudos, puntaje
+- Barra de HP del bombardero
+- Overlay de pausa y "Game Over"
+
+---
+
+## 7. Flujo de Datos (Data Flow)
+
+### Combate / Colisiones
+
+```
+Player dispara → Shooting() agregado a shoot_list + all_sprites
+                     ↓
+CollisionManager.handle_shoot_vs_enemy()
+  → detecta colisión shoot vs tank_red/tank_green
+  → resta HP al enemigo
+  → si HP ≤ 0:
+      → suma puntaje (red=100, green=150)
+      → spawn Death() en crash_list + all_sprites
+      → reproduce sonido explosión
+      → elimina enemigo
+  → elimina proyectil
+
+Tanque enemigo llega abajo →
+CollisionManager.handle_player_vs_enemy()
+  → si player.shield_activated: destruye enemigo, bonus 50pts
+  → si no: resta HP al jugador
+```
+
+### Progresión
+
+```
+ProgressionManager.update()
+  → recarga 1 misil cada 3s si no está al máximo
+  → si all_enemies_cleared():
+      → incrementa nivel
+      → cura +50 HP (hasta 100)
+      → otorga 5 misiles + 1 apoyo aéreo
+      → EnemyManager.spawn_level(level)
+```
+
+### Jefe Final
+
+```
+Si nivel ≥ 7 y no hay jefe activo:
+  → spawn Bombardier() en bombardier_list
+  → se mueve horizontalmente, dispara BoatProjectile
+  → CollisionManager.handle_shoot_vs_bombardier()
+  → CollisionManager.handle_enemy_bullets()
+  → al morir: BombardierSinkingEffect → animación de hundimiento → Game Over (victoria)
+```
+
+---
+
+## 8. Assets y Recursos
+
+- **Sprites del jugador**: 4 orientaciones (main, left, back, right)
+- **Tanques enemigos**: rojo (estándar) y verde (más daño)
+- **Fondos de nivel**: 4 variantes (lvl1_A .. D) con scroll en bucle
+- **Animaciones**:
+  - Explosión de tanque: 16 frames (`TankExplosion/`)
+  - Estela de humo: 24 frames (`SmokeFrames/`)
+  - Proyectil del jefe: 5 frames (`BoatShot/`)
+  - Muerte del bombardero: animación en `BombardierDeathAnimation/`
+- **Spritesheet del jefe**: JPG con procesamiento de eliminación de fondo (flood-fill via `pygame.surfarray`)
+- **Sonido**: 12 OGGs — música (menu/song/options/gameover), motores (engine/engine_2 según movimiento), SFX (disparo, explosión, escudo, selección, avión de apoyo aéreo, derrota). Volumen segmentado en 3 categorías (general, música, efectos) configurable desde el submenú de opciones.
+
+---
+
+## 9. Escalado y Renderizado
+
+El juego utiliza **doble buffer**:
+1. Se dibuja todo sobre `self.config.screen` (superficie virtual de 1000×700)
+2. `config.present()` escala la superficie virtual para que encaje en la ventana real manteniendo relación de aspecto (`pygame.transform.scale`)
+3. La ventana puede estar en modo ventana o fullscreen según la configuración
+
+---
+
+## 10. Mapa de Archivos Clave
+
+| Archivo | Líneas | Rol |
+|---|---|---|
+| `game.py` | ~30 | Entry point, bucle principal |
+| `config/Settings.py` | ~211 | Constantes + clase GameConfig + sistema de volumen |
+| `GameContext.py` | ~80 | Estado global, sprite groups |
+| `sences/GameScene.py` | ~430 | Escena principal, orquesta managers + motor según movimiento |
+| `sences/SceneManager.py` | ~50 | Máquina de estados de escenas |
+| `entities/Bombardier.py` | ~699 | Jefe final (entidad más compleja) |
+| `gameplay/collision_manager.py` | ~194 | Lógica central de combate |
+| `gameplay/player_controller.py` | ~100 | Input del jugador |
+| `ui/hud.py` | ~156 | Interfaz en pantalla |
