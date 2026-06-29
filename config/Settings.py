@@ -162,11 +162,17 @@ class GameConfig:
             return 'music'
         return 'effects'
 
+    # Per-sound volume (0.0 – 1.0). Unlisted sounds use effects_volume.
+    _sound_volumes: dict[str, float] = {
+        'shoot': 0.8,
+    }
+
     def _effective_volume(self, key: str) -> float:
         cat = self._sound_category(key)
         if cat == 'music':
             return self.master_volume * self.music_volume
-        return self.master_volume * self.effects_volume
+        base = self.master_volume * self.effects_volume
+        return base * self._sound_volumes.get(key, 1.0)
 
     def _apply_sound_volume(self, key: str) -> None:
         sound = self._sounds.get(key)

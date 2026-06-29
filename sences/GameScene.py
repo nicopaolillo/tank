@@ -406,6 +406,13 @@ class GameScene(Scene):
             active_bombardier = self.bombardier_list.sprites()[0] if len(self.bombardier_list) > 0 else None
             if active_bombardier is not None and getattr(active_bombardier, "is_destroyed", False):
                 active_bombardier = None
+
+            if active_bombardier is not None and getattr(active_bombardier, "_shield_active", False):
+                r = active_bombardier.rect
+                shield_surf = pygame.Surface((r.width + 24, r.height + 24), pygame.SRCALPHA)
+                pygame.draw.ellipse(shield_surf, (255, 180, 0, 90), shield_surf.get_rect(), 4)
+                self.config.screen.blit(shield_surf, (r.x - 12, r.y - 12))
+
             Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player, active_bombardier)
 
             # Debug overlay: show FPS and player position only when toggled

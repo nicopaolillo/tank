@@ -28,9 +28,25 @@ class GameContext:
         self.game_over = False
         self.pause = False
 
+        self._preload_assets()
         self._create_tanks()
 
         self.all_sprites.add(self.player)
+
+    @staticmethod
+    def _preload_assets() -> None:
+        """Preload heavy assets so they don't cause hitches during gameplay."""
+        from entities.Bombardier import Bombardier, BombardierSinkingEffect, BoatProjectile
+        from entities.Death import Death
+        from entities.SmokeTrail import SmokeTrail
+
+        Bombardier._get_base_frames()
+        Bombardier._get_fire_frames()
+        Bombardier._get_water_frames()
+        BombardierSinkingEffect._get_frames()
+        BoatProjectile._get_frames()
+        Death._load_cache()
+        SmokeTrail._load_frames()
 
     def _create_tanks(self):
         """Spawn initial tanks for the level."""

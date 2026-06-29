@@ -62,7 +62,7 @@ tank-master/
 | Lenguaje | Python 3 (type hints con `from __future__ import annotations`) |
 | Framework gráfico | Pygame (SDL2 wrapper) |
 | Sprites | PNG / JPG |
-| Audio | OGG Vorbis |
+| Audio | OGG Vorbis (amplificados con ffmpeg para balancear niveles entre explosion / shoot / plane) |
 | Entorno objetivo | Windows |
 
 ---
@@ -146,7 +146,7 @@ GameScene (ESC) → salir del juego
 ### 6.1 Config (`config/Settings.py`)
 
 - **Constantes globales**: dimensiones (1000×700), colores, HP, velocidad, daño, puntajes, rutas de assets/sonidos.
-- **Clase `GameConfig`**: inicializa Pygame, ventana, superficies de render, canales de audio, fuentes. Métodos auxiliares: `get_sound()`, `get_player_sprite()`, `present()` (escala y presenta el frame). Incluye sistema de volumen con tres niveles (master, música, efectos) y categorización automática de sonidos mediante `MUSIC_KEYS`/`EFFECTS_KEYS`.
+- **Clase `GameConfig`**: inicializa Pygame, ventana, superficies de render, canales de audio, fuentes. Métodos auxiliares: `get_sound()`, `get_player_sprite()`, `present()` (escala y presenta el frame). Incluye sistema de volumen con tres niveles (master, música, efectos), más un dict `_sound_volumes` para ajustes finos por sonido (p.ej. `shoot` al 0.8).
 
 ### 6.2 Estado Global (`GameContext.py`)
 
@@ -154,6 +154,7 @@ Contenedor que inicializa:
 - Grupos de sprites: `tank_red_list`, `tank_green_list`, `shoot_list`, `enemy_shoot_list`, `crash_list`, `apoyo_list`, `powerup_list`, `smoke_list`, `bombardier_list`, `all_sprites`
 - Instancia del jugador (`Player`)
 - Tanques iniciales
+- `_preload_assets()`: fuerza la precarga de todos los assets pesados (frames de Bombardier, Death, SmokeTrail, proyectiles) para evitar micro-congelamientos durante la partida
 - Método `reset_player_state()`
 
 ### 6.3 Sistema de Escenas (`sences/`)
@@ -175,7 +176,7 @@ Todas heredan de `pygame.sprite.Sprite`:
 | `Tank_green` | `Tank.py` | Tanque enemigo verde (hereda de Tank). Más daño |
 | `Shooting` | `Shooting.py` | Proyectil del jugador. Se destruye al salir de pantalla |
 | `AirSupport` | `AirSupport.py` | Avión de apoyo aéreo que vuela hacia arriba |
-| `Bombardier` | `Bombardier.py` | Jefe final (~699 líneas). Navegación horizontal, dispara proyectiles, animación de muerte y hundimiento |
+| `Bombardier` | `Bombardier.py` | Jefe final (~730 líneas). Aparece desde arriba de la pantalla (`_entering`), desciende hasta su posición y luego comienza navegación horizontal + disparos. Escudo periódico (10 s entre activaciones, 3 s de duración) que lo vuelve inmune y se visualiza como óvalo naranja; al recibir impacto estando protegido suena `iron_sound` |
 | `FinalBossBoat` | `FinalBossBoat.py` | Variante casi idéntica al Bombardier |
 | `BoatProjectile` | `Bombardier.py` / `FinalBossBoat.py` | Proyectil del jefe. Animado, persigue al jugador |
 | `BombardierSinkingEffect` | `Bombardier.py` | Efecto de hundimiento al derrotar al jefe |
@@ -240,8 +241,12 @@ ProgressionManager.update()
 
 ```
 Si nivel ≥ 7 y no hay jefe activo:
-  → spawn Bombardier() en bombardier_list
-  → se mueve horizontalmente, dispara BoatProjectile
+  → spawn Bombardier() en bombardier_list (comienza en y = -150)
+  → mientras _entering: desciende verticalmente (speed 1.0), inmune al daño
+  → al alcanzar _target_y: transiciona a comportamiento normal
+     → se mueve horizontalmente, dispara BoatProjectile
+     → escudo cíclico: 3 s activo / 7 s inactivo, visualizado como óvalo naranja
+     → si escudo activo: disparos rebotan con sonido iron_sound, sin daño
   → CollisionManager.handle_shoot_vs_bombardier()
   → CollisionManager.handle_enemy_bullets()
   → al morir: BombardierSinkingEffect → animación de hundimiento → Game Over (victoria)
@@ -276,13 +281,13 @@ El juego utiliza **doble buffer**:
 ## 10. Mapa de Archivos Clave
 
 | Archivo | Líneas | Rol |
-|---|---|---|
+|---|---|---|---|
 | `game.py` | ~30 | Entry point, bucle principal |
-| `config/Settings.py` | ~211 | Constantes + clase GameConfig + sistema de volumen |
-| `GameContext.py` | ~80 | Estado global, sprite groups |
-| `sences/GameScene.py` | ~430 | Escena principal, orquesta managers + motor según movimiento |
+| `config/Settings.py` | ~220 | Constantes + clase GameConfig + sistema de volumen (con `_sound_volumes` por sonido) |
+| `GameContext.py` | ~75 | Estado global, sprite groups, precarga de assets (`_preload_assets`) |
+| `sences/GameScene.py` | ~435 | Escena principal, orquesta managers + motor según movimiento + escudo del Bombardier |
 | `sences/SceneManager.py` | ~50 | Máquina de estados de escenas |
-| `entities/Bombardier.py` | ~699 | Jefe final (entidad más compleja) |
-| `gameplay/collision_manager.py` | ~194 | Lógica central de combate |
+| `entities/Bombardier.py` | ~730 | Jefe final (entidad más compleja): entrada desde arriba, escudo periódico |
+| `gameplay/collision_manager.py` | ~200 | Lógica central de combate (incluye detección de escudo del Bombardier) |
 | `gameplay/player_controller.py` | ~100 | Input del jugador |
 | `ui/hud.py` | ~156 | Interfaz en pantalla |

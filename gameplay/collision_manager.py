@@ -118,6 +118,10 @@ class CollisionManager:
                 hit_fx.animate()
                 self.all_sprites.add(hit_fx)
 
+                if getattr(boat, "_shield_active", False):
+                    self.config.get_sound("iron").play()
+                    continue
+
                 if boat.take_damage(BOMBARDIER_PLAYER_SHOT_DAMAGE):
                     self.player.puntaje += BOMBARDIER_KILL_POINTS
                     self.config.get_sound("explosion").play()

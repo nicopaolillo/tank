@@ -475,7 +475,7 @@ class Bombardier(pygame.sprite.Sprite):
         self.fire_frames = self._get_fire_frames()
         self.frame_index = 0
         self.image = self.base_frames[self.frame_index]
-        self.rect = self.image.get_rect(center=((left_bound + right_bound) // 2, y_position))
+        self.rect = self.image.get_rect(center=((left_bound + right_bound) // 2, -150))
 
         self.enemy_shoot_list = enemy_shoot_list
         self.all_sprites = all_sprites
@@ -483,11 +483,14 @@ class Bombardier(pygame.sprite.Sprite):
 
         self.left_bound = left_bound
         self.right_bound = right_bound
+        self._target_y = y_position - 60
+        self._entrance_speed = 1.0
         self.speed_x = 2.2
         self.direction = 1
         self.max_hp = BOMBARDIER_MAX_HP
         self.hp = self.max_hp
 
+        self._entering = True
         self.wave_interval_ms = 95
         self.last_wave_ms = pygame.time.get_ticks()
 
@@ -505,6 +508,10 @@ class Bombardier(pygame.sprite.Sprite):
         self.explosion_interval_ms = 85
         self.final_center = self.rect.center
         self.sinking_effect_spawned = False
+        self._shield_active = False
+        self._shield_interval_ms = 10000
+        self._shield_duration_ms = 3000
+        self._shield_next_activation_ms = pygame.time.get_ticks() + random.randint(3000, 6000)
 
     @classmethod
     def _get_base_frames(cls) -> list[pygame.Surface]:
@@ -583,12 +590,38 @@ class Bombardier(pygame.sprite.Sprite):
             self._run_death_sequence()
             return
 
+        if self._entering:
+            self._enter_from_top()
+            return
+
+        self._update_shield()
         self._move_horizontally()
         self._animate()
         self._try_shoot()
 
+    def _update_shield(self) -> None:
+        now = pygame.time.get_ticks()
+        if self._shield_active and now >= self._shield_next_activation_ms + self._shield_duration_ms:
+            self._shield_active = False
+            self._shield_next_activation_ms = now + self._shield_interval_ms
+        elif not self._shield_active and now >= self._shield_next_activation_ms:
+            self._shield_active = True
+            self._shield_next_activation_ms = now
+
+    def _enter_from_top(self) -> None:
+        self.rect.y += int(self._entrance_speed)
+        if self.rect.y >= self._target_y:
+            self.rect.y = self._target_y
+            self._entering = False
+            self.final_center = self.rect.center
+            self.last_wave_ms = pygame.time.get_ticks()
+            self.next_shot_ms = pygame.time.get_ticks() + random.randint(900, 1400)
+
     def take_damage(self, amount: int) -> bool:
         if self.is_destroyed:
+            return False
+
+        if self._entering or self._shield_active:
             return False
 
         self.hp = max(0, self.hp - amount)
