@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from config.Settings import MISSILE_RECHARGE_TIME, PLAYER_MAX_SUPPORT
+from config.Settings import MISSILE_RECHARGE_TIME
 
 
 class ProgressionManager:
@@ -34,7 +34,7 @@ class ProgressionManager:
             self.player.nivel += 1
             self.player.hp = min(self.player.hp + 100, 200)
             self.player.misiles += 3
-            self.player.apoyo = min(self.player.apoyo + 1, PLAYER_MAX_SUPPORT)
+
             self.completed = True
 
         if self.player.nivel > 1 and self.completed:

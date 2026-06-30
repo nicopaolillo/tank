@@ -7,6 +7,7 @@ from config.Settings import GameConfig, BACKGROUND_IMAGES
 from GameContext import GameContext
 from entities.SmokeTrail import SmokeTrail
 from entities.ShieldPowerUp import ShieldPowerUp
+from entities.AirSupportPickup import AirSupportPickup
 from entities.Bombardier import Bombardier
 from entities.Tank import Tank, Tank_green
 from sences.Scene import Scene
@@ -180,6 +181,8 @@ class GameScene(Scene):
         )
         if level_up and self.player.nivel % 3 == 0:
             self._spawn_shield_powerup()
+        if level_up and self.player.nivel in (3, 5, 7):
+            self._spawn_air_support_pickup()
 
         if self.final_background_active:
             self._ensure_bombardier()
@@ -330,6 +333,11 @@ class GameScene(Scene):
         self.all_sprites.add(powerup)
         self.context.powerup_list.add(powerup)
 
+    def _spawn_air_support_pickup(self) -> None:
+        pickup = AirSupportPickup()
+        self.all_sprites.add(pickup)
+        self.context.powerup_list.add(pickup)
+
     def _game_over_screen(self) -> None:
         # Play game over sound and stop game music (only once)
         if not self._game_over_shown:
@@ -363,7 +371,6 @@ class GameScene(Scene):
             # heal player on level-up but cap maximum HP at 200
             self.player.hp = min(self.player.hp + 100, 200)
             self.player.misiles = min(self.player.misiles + 3, 3)
-            self.player.apoyo += 1
             self.completado = True
 
         if self.player.nivel > 1 and self.completado:

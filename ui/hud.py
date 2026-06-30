@@ -137,7 +137,7 @@ class HudManager:
             hp_rect.right = icon_x - 8
             screen.blit(hp_text, hp_rect)
 
-        HudManager.show_text(screen, font, "Puntaje: ", player.puntaje, 0, 480, 140, 480)
+        HudManager.show_text(screen, font, "Score:", player.puntaje, 0, 480, 88, 480)
 
     @staticmethod
     def draw_pause_overlay(screen: pygame.Surface, font_small: pygame.font.Font, font_large: pygame.font.Font, width: int, height: int) -> None:

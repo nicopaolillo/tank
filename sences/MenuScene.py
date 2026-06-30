@@ -76,10 +76,9 @@ class MenuScene(Scene):
         choice = self.items[self.selection_index]
         if choice == "Jugar":
             self.config.main_channel.stop()
-            self.config.game_channel.play(self.config.get_sound('game'), loops=-1, fade_ms=100)
-            from sences.GameScene import GameScene
+            from sences.ControlsScene import ControlsScene
 
-            self.scene_manager.change_scene(GameScene(self.config, self.scene_manager))
+            self.scene_manager.change_scene(ControlsScene(self.config, self.scene_manager))
         elif choice == "Opciones":
             from sences.OptionsScene import OptionsScene
 

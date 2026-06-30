@@ -10,6 +10,7 @@ from config.Settings import (
     AIR_SUPPORT_RED_POINTS,
     AIR_SUPPORT_GREEN_POINTS,
     PLAYER_MAX_SHIELDS,
+    PLAYER_MAX_SUPPORT,
     BOMBARDIER_PLAYER_SHOT_DAMAGE,
     BOMBARDIER_KILL_POINTS,
     BOMBARDIER_PROJECTILE_DAMAGE,
@@ -135,7 +136,12 @@ class CollisionManager:
                     self.all_sprites.remove(powerup)
                 if powerup in self.powerup_list:
                     self.powerup_list.remove(powerup)
-                self.player.shield_inventory = min(self.player.shield_inventory + 1, PLAYER_MAX_SHIELDS)
+                from entities.ShieldPowerUp import ShieldPowerUp
+                from entities.AirSupportPickup import AirSupportPickup
+                if isinstance(powerup, ShieldPowerUp):
+                    self.player.shield_inventory = min(self.player.shield_inventory + 1, PLAYER_MAX_SHIELDS)
+                elif isinstance(powerup, AirSupportPickup):
+                    self.player.apoyo = min(self.player.apoyo + 1, PLAYER_MAX_SUPPORT)
                 self.config.get_sound("select").play()
 
     def _remove_shoot(self, shoot) -> None:

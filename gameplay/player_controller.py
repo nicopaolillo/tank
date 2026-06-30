@@ -23,24 +23,34 @@ class PlayerController:
         self.apoyo_list = apoyo_list
         self.last_fire_time = -MISSILE_FIRE_COOLDOWN
         self.min_top_bound = 0
+        self._keys = {
+            pygame.K_LEFT: False,
+            pygame.K_RIGHT: False,
+            pygame.K_UP: False,
+            pygame.K_DOWN: False,
+        }
 
     def set_top_limit(self, min_top: int) -> None:
         self.min_top_bound = max(0, min_top)
 
     def handle_keydown(self, event: pygame.event.EventType, elapsed_time: float) -> None:
         if event.key == pygame.K_LEFT:
+            self._keys[pygame.K_LEFT] = True
             self.player.speed_x = -PLAYER_SPEED
             self.player.facing = "left"
             self.player.image = self.config.get_player_sprite("left")
         elif event.key == pygame.K_RIGHT:
+            self._keys[pygame.K_RIGHT] = True
             self.player.speed_x = PLAYER_SPEED
             self.player.facing = "right"
             self.player.image = self.config.get_player_sprite("right")
         elif event.key == pygame.K_UP:
+            self._keys[pygame.K_UP] = True
             self.player.speed_y = -PLAYER_SPEED
             self.player.facing = "up"
             self.player.image = self.config.get_player_sprite("default")
         elif event.key == pygame.K_DOWN:
+            self._keys[pygame.K_DOWN] = True
             self.player.speed_y = PLAYER_SPEED
             self.player.facing = "down"
             self.player.image = self.config.get_player_sprite("down")
@@ -53,9 +63,21 @@ class PlayerController:
 
     def handle_keyup(self, event: pygame.event.EventType) -> None:
         if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-            self.player.speed_x = 0
+            self._keys[event.key] = False
+            if event.key == pygame.K_LEFT and self._keys[pygame.K_RIGHT]:
+                self.player.speed_x = PLAYER_SPEED
+            elif event.key == pygame.K_RIGHT and self._keys[pygame.K_LEFT]:
+                self.player.speed_x = -PLAYER_SPEED
+            else:
+                self.player.speed_x = 0
         elif event.key in (pygame.K_UP, pygame.K_DOWN):
-            self.player.speed_y = 0
+            self._keys[event.key] = False
+            if event.key == pygame.K_UP and self._keys[pygame.K_DOWN]:
+                self.player.speed_y = PLAYER_SPEED
+            elif event.key == pygame.K_DOWN and self._keys[pygame.K_UP]:
+                self.player.speed_y = -PLAYER_SPEED
+            else:
+                self.player.speed_y = 0
 
     def update(self) -> None:
         self.player.rect.x += self.player.speed_x
