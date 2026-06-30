@@ -38,22 +38,22 @@ class PlayerController:
             self._keys[pygame.K_LEFT] = True
             self.player.speed_x = -PLAYER_SPEED
             self.player.facing = "left"
-            self.player.image = self.config.get_player_sprite("left")
+            self.player.update_sprite()
         elif event.key == pygame.K_RIGHT:
             self._keys[pygame.K_RIGHT] = True
             self.player.speed_x = PLAYER_SPEED
             self.player.facing = "right"
-            self.player.image = self.config.get_player_sprite("right")
+            self.player.update_sprite()
         elif event.key == pygame.K_UP:
             self._keys[pygame.K_UP] = True
             self.player.speed_y = -PLAYER_SPEED
             self.player.facing = "up"
-            self.player.image = self.config.get_player_sprite("default")
+            self.player.update_sprite()
         elif event.key == pygame.K_DOWN:
             self._keys[pygame.K_DOWN] = True
             self.player.speed_y = PLAYER_SPEED
             self.player.facing = "down"
-            self.player.image = self.config.get_player_sprite("down")
+            self.player.update_sprite()
         elif event.key == pygame.K_q and self.player.apoyo > 0:
             self._spawn_support()
         elif event.key == pygame.K_w:

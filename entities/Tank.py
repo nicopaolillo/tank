@@ -23,6 +23,11 @@ class Tank(pygame.sprite.Sprite):
 
 
 class Tank_green(Tank):
+    damaged_image = None
+
     def __init__(self, spawn_from_top: bool = False, max_start_offset: int = 300):
         super().__init__(spawn_from_top=spawn_from_top, max_start_offset=max_start_offset)
         self.image = pygame.image.load("assets/tank_green.png").convert_alpha()
+        self.hits = 0
+        if Tank_green.damaged_image is None:
+            Tank_green.damaged_image = pygame.image.load("assets/tank_green_damaged.png").convert_alpha()

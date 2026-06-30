@@ -16,6 +16,7 @@ from config.Settings import (
     BOMBARDIER_PROJECTILE_DAMAGE,
 )
 from entities.Death import Death
+from entities.Tank import Tank_green
 
 
 class CollisionManager:
@@ -82,12 +83,16 @@ class CollisionManager:
 
     def handle_green_tank_shots(self) -> None:
         for shoot in list(self.shoot_list):
-            shoot_hits = pygame.sprite.spritecollide(shoot, self.tank_green_list, len(self.tank_red_list) == 0)
+            shoot_hits = pygame.sprite.spritecollide(shoot, self.tank_green_list, False)
             for tank in shoot_hits:
                 self._remove_shoot(shoot)
-                if len(self.tank_red_list) > 0:
+                if tank.hits == 0:
+                    tank.hits += 1
+                    tank.image = Tank_green.damaged_image
                     self.config.get_sound("iron").play()
                 else:
+                    self.tank_green_list.remove(tank)
+                    self.all_sprites.remove(tank)
                     self.player.puntaje += TANK_GREEN_KILL_POINTS
                     death = Death(tank.rect.x, tank.rect.y)
                     death.animate()
@@ -158,6 +163,7 @@ class CollisionManager:
             if self.player.shield_active:
                 continue
             self.player.hp -= TANK_RED_HIT_DAMAGE
+            self.player.update_sprite()
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
             self.all_sprites.add(death)
@@ -174,6 +180,7 @@ class CollisionManager:
             if self.player.shield_active:
                 continue
             self.player.hp -= TANK_GREEN_HIT_DAMAGE
+            self.player.update_sprite()
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
             self.all_sprites.add(death)
@@ -192,6 +199,7 @@ class CollisionManager:
             return False
 
         self.player.hp -= BOMBARDIER_PROJECTILE_DAMAGE * len(hits)
+        self.player.update_sprite()
         death = Death(self.player.rect.x, self.player.rect.y)
         death.animate()
         self.all_sprites.add(death)

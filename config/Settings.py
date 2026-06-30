@@ -31,7 +31,7 @@ TANK_GREEN_SPAWN_COUNT = 1
 MISSILE_RECHARGE_TIME = 3.0  # seconds
 MISSILE_SCORE_PENALTY_PER_SECOND = 300
 # cooldown in seconds (was described as deciseconds before)
-MISSILE_FIRE_COOLDOWN = 1.5  # seconds
+MISSILE_FIRE_COOLDOWN = 1.0  # seconds
 
 TANK_RED_HIT_DAMAGE = 20
 TANK_GREEN_HIT_DAMAGE = 40
@@ -78,6 +78,8 @@ PLAYER_SPRITES = {
     'left': 'assets/player_main.png',
     'right': 'assets/player_main.png',
     'down': 'assets/player_main.png',
+    'damaged': 'assets/player_main_damaged.png',
+    'damaged_2': 'assets/player_main_damaged_2.png',
 }
 
 PLAYER_SPRITE_SIZE = (75, 75)
@@ -191,13 +193,14 @@ class GameConfig:
                 self._apply_sound_volume(key)
         return self._sounds.get(key)
     
-    def get_player_sprite(self, direction: str = 'default') -> pygame.Surface:
+    def get_player_sprite(self, direction: str = 'default', damage_state: str = '') -> pygame.Surface:
         """Load player sprite images."""
-        cached = self._player_sprite_cache.get(direction)
+        cache_key = f'{damage_state}_{direction}' if damage_state else direction
+        cached = self._player_sprite_cache.get(cache_key)
         if cached is not None:
             return cached.copy()
 
-        sprite_path = PLAYER_SPRITES.get(direction, PLAYER_SPRITES['default'])
+        sprite_path = PLAYER_SPRITES.get(damage_state if damage_state else direction, PLAYER_SPRITES['default'])
         image = pygame.image.load(sprite_path).convert_alpha()
 
         # Remove transparent margins so no boxed look remains after scaling.
@@ -214,5 +217,5 @@ class GameConfig:
         elif direction == 'down':
             image = pygame.transform.rotate(image, 180)
 
-        self._player_sprite_cache[direction] = image
+        self._player_sprite_cache[cache_key] = image
         return image.copy()

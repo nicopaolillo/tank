@@ -40,13 +40,13 @@ tank-master/
 ├── ui/
 │   ├── __init__.py
 │   └── hud.py                # HUD del juego
-├── assets/                   # Sprites, fondos, animaciones (~60 archivos)
+├── assets/                   # Sprites, fondos, animaciones
 │   ├── background_menu.png
 │   ├── background_lvl1_A.png ... D.png
-│   ├── player_main.png, player_left.png, etc.
-│   ├── tank_red.png, tank_green.png
+│   ├── player_main.png, player_main_damaged.png, player_main_damaged_2.png
+│   ├── tank_red.png, tank_green.png, tank_green_damaged.png
 │   ├── avion.png, bullet.png, shieldArmy.png
-│   ├── TankExplosion/        # 16 frames de explosión
+│   ├── TankExplosion/        # 15 frames de explosión (0001–0015)
 │   ├── SmokeFrames/          # 24 frames de estela de humo
 │   ├── bombardier_lvl1/      # Sprites del jefe bombardero
 │   └── ...
@@ -146,7 +146,7 @@ GameScene (ESC) → salir del juego
 ### 6.1 Config (`config/Settings.py`)
 
 - **Constantes globales**: dimensiones (1000×700), colores, HP, velocidad, daño, puntajes, rutas de assets/sonidos.
-- **Clase `GameConfig`**: inicializa Pygame, ventana, superficies de render, canales de audio, fuentes. Métodos auxiliares: `get_sound()`, `get_player_sprite()`, `present()` (escala y presenta el frame). Incluye sistema de volumen con tres niveles (master, música, efectos), más un dict `_sound_volumes` para ajustes finos por sonido (p.ej. `shoot` al 0.8).
+- **Clase `GameConfig`**: inicializa Pygame, ventana, superficies de render, canales de audio, fuentes. Métodos auxiliares: `get_sound()`, `get_player_sprite()` (acepta `damage_state: str` para 3 niveles: normal, `'damaged'` ≤100 HP, `'damaged_2'` ≤50 HP), `present()` (escala y presenta el frame). Incluye sistema de volumen con tres niveles (master, música, efectos), más un dict `_sound_volumes` para ajustes finos por sonido (p.ej. `shoot` al 0.8).
 
 ### 6.2 Estado Global (`GameContext.py`)
 
@@ -173,7 +173,7 @@ Todas heredan de `pygame.sprite.Sprite`:
 |---|---|---|
 | `Player` | `Player.py` | Tanque del jugador: HP, nivel, misiles, puntaje, escudos, movimiento |
 | `Tank` | `Tank.py` | Tanque enemigo rojo. Se mueve verticalmente |
-| `Tank_green` | `Tank.py` | Tanque enemigo verde (hereda de Tank). Más daño |
+| `Tank_green` | `Tank.py` | Tanque enemigo verde (hereda de Tank). Más daño al colisionar. Resiste 2 disparos: 1er impacto → sprite `tank_green_damaged.png` + sonido `iron_sound`, 2do impacto → explota |
 | `Shooting` | `Shooting.py` | Proyectil del jugador. Se destruye al salir de pantalla |
 | `AirSupport` | `AirSupport.py` | Avión de apoyo aéreo que vuela hacia arriba |
 | `Bombardier` | `Bombardier.py` | Jefe final (~730 líneas). Aparece desde arriba de la pantalla (`_entering`), desciende hasta su posición y luego comienza navegación horizontal + disparos. Escudo periódico (10 s entre activaciones, 3 s de duración) que lo vuelve inmune y se visualiza como óvalo naranja; al recibir impacto estando protegido suena `iron_sound` |
@@ -211,12 +211,10 @@ Player dispara → Shooting() agregado a shoot_list + all_sprites
                      ↓
 CollisionManager.handle_shoot_vs_enemy()
   → detecta colisión shoot vs tank_red/tank_green
-  → resta HP al enemigo
-  → si HP ≤ 0:
-      → suma puntaje (red=100, green=150)
-      → spawn Death() en crash_list + all_sprites
-      → reproduce sonido explosión
-      → elimina enemigo
+  → tank_red: destrucción inmediata
+  → tank_green: 2 impactos necesarios
+      → 1er impacto: sprite → tank_green_damaged.png + sonido iron_sound
+      → 2do impacto: explota (puntaje 300, Death(), explosion.ogg)
   → elimina proyectil
 
 Tanque enemigo llega abajo →
@@ -256,8 +254,8 @@ Si nivel ≥ 7 y no hay jefe activo:
 
 ## 8. Assets y Recursos
 
-- **Sprites del jugador**: 4 orientaciones (main, left, back, right)
-- **Tanques enemigos**: rojo (estándar) y verde (más daño)
+- **Sprites del jugador**: 4 orientaciones + 2 variantes dañadas (`player_main_damaged.png` ≤100 HP, `player_main_damaged_2.png` ≤50 HP)
+- **Tanques enemigos**: rojo (estándar) y verde (más daño, sprite `tank_green_damaged.png` tras 1er impacto)
 - **Fondos de nivel**: 4 variantes (lvl1_A .. D) con scroll en bucle
 - **Animaciones**:
   - Explosión de tanque: 16 frames (`TankExplosion/`)
@@ -283,11 +281,11 @@ El juego utiliza **doble buffer**:
 | Archivo | Líneas | Rol |
 |---|---|---|---|
 | `game.py` | ~30 | Entry point, bucle principal |
-| `config/Settings.py` | ~220 | Constantes + clase GameConfig + sistema de volumen (con `_sound_volumes` por sonido) |
+| `config/Settings.py` | ~221 | Constantes + clase GameConfig + sistema de volumen (con `_sound_volumes` por sonido) + sprites dañados del jugador |
 | `GameContext.py` | ~75 | Estado global, sprite groups, precarga de assets (`_preload_assets`) |
 | `sences/GameScene.py` | ~435 | Escena principal, orquesta managers + motor según movimiento + escudo del Bombardier |
 | `sences/SceneManager.py` | ~50 | Máquina de estados de escenas |
 | `entities/Bombardier.py` | ~730 | Jefe final (entidad más compleja): entrada desde arriba, escudo periódico |
-| `gameplay/collision_manager.py` | ~200 | Lógica central de combate (incluye detección de escudo del Bombardier) |
-| `gameplay/player_controller.py` | ~100 | Input del jugador |
+| `gameplay/collision_manager.py` | ~210 | Lógica central de combate (incluye daño de tanques verdes en 2 golpes + sprites dañados del jugador) |
+| `gameplay/player_controller.py` | ~130 | Input del jugador |
 | `ui/hud.py` | ~156 | Interfaz en pantalla |

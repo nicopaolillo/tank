@@ -23,6 +23,7 @@ class Player(pygame.sprite.Sprite):
 
         self.hp = PLAYER_INITIAL_HP
         self.nivel = PLAYER_INITIAL_LEVEL
+        self.update_sprite()
         self.misiles = PLAYER_INITIAL_MISSILES
         self.puntaje = 0
         self.apoyo = PLAYER_INITIAL_SUPPORT
@@ -37,6 +38,16 @@ class Player(pygame.sprite.Sprite):
         self.shield_inventory -= 1
         self.shield_active = True
         self.shield_end_time = current_time + self.shield_duration
+
+    def update_sprite(self) -> None:
+        if self.hp <= 50:
+            state = 'damaged_2'
+        elif self.hp <= 100:
+            state = 'damaged'
+        else:
+            state = ''
+        self.image = self.config.get_player_sprite(self.facing, damage_state=state)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
     def update_shield(self, current_time: float) -> None:
         if self.shield_active and current_time >= self.shield_end_time:
