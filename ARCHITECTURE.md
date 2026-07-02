@@ -2,7 +2,7 @@
 
 ## 1. Descripción General
 
-**Tank Game** es un videojuego de acción tipo arcade shooter desarrollado en **Python 3** con **Pygame**. El jugador controla un tanque, elimina oleadas de tanques enemigos rojos y verdes que caen desde arriba, acumula puntaje, sube de nivel, recolecta power-ups de escudo y enfrenta un jefe final (bombardero/barco).
+**Tank Game** es un videojuego de acción tipo arcade shooter desarrollado en **Python 3** con **Pygame**. El jugador controla un tanque, elimina oleadas de tanques enemigos rojos y verdes que caen desde arriba, acumula puntaje, sube de nivel, recolecta power-ups de escudo, enfrenta un jefe final (bombardero/barco) y accede a una tienda entre misiones para comprar mejoras (armadura, doble cañón, orugas).
 
 ---
 
@@ -36,6 +36,8 @@ tank-master/
 │   ├── SceneManager.py       # Administrador de escenas (state machine)
 │   ├── MenuScene.py          # Escena del menú principal
 │   ├── OptionsScene.py       # Escena de opciones
+│   ├── ControlsScene.py      # Escena de controles (entre tienda pre-partida y juego)
+│   ├── ShopScene.py          # Escena de tienda (mejoras entre misiones)
 │   └── GameScene.py          # Escena principal del juego
 ├── ui/
 │   ├── __init__.py
@@ -44,8 +46,11 @@ tank-master/
 │   ├── background_menu.png
 │   ├── background_lvl1_A.png ... D.png
 │   ├── player_main.png, player_main_damaged.png, player_main_damaged_2.png
+│   ├── player_armor.png, player_double_barrel.png, player_tank_track.png
 │   ├── tank_red.png, tank_green.png, tank_green_damaged.png
+│   ├── armor.png, double_barrel.png, tank_track.png
 │   ├── avion.png, bullet.png, shieldArmy.png
+│   ├── menu_shop.png
 │   ├── TankExplosion/        # 15 frames de explosión (0001–0015)
 │   ├── SmokeFrames/          # 24 frames de estela de humo
 │   ├── bombardier_lvl1/      # Sprites del jefe bombardero
@@ -71,7 +76,7 @@ tank-master/
 
 | Patrón | Ubicación |
 |---|---|
-| **State** | Sistema de escenas: `SceneManager` + `Scene` (MenuScene, GameScene, OptionsScene) |
+| **State** | Sistema de escenas: `SceneManager` + `Scene` (MenuScene, GameScene, OptionsScene, ShopScene, ControlsScene) |
 | **Singleton / Flyweight (caché)** | Atributos de clase `_frames_cache` en `Bombardier`, `FinalBossBoat`, `BoatProjectile`, `SmokeTrail`, `Death`, `HudManager` |
 | **Game Loop** | `game.py`: eventos → update → render a 60 FPS |
 | **Double Buffer** | Pygame: superficie virtual → escalado → ventana real |
@@ -134,7 +139,11 @@ while True:
 
 ```
 MenuScene (Jugar) → GameScene
+MenuScene (Tienda) → ShopScene (pre-partida, sin player) → ControlsScene → GameScene (con mejora aplicada)
 MenuScene (Opciones) → OptionsScene → (Atrás) → MenuScene
+GameScene (Bombardier derrotado + 5s) → ShopScene (entre misiones, con player persistente)
+ShopScene (mejora equipada + ENTER) → _render_selected() → ENTER → vuelve al menú
+ShopScene (Atrás / DOWN + ENTER) → MenuScene
 GameScene (Game Over + R) → GameScene (reinicio)
 GameScene (ESC) → salir del juego
 ```
@@ -155,15 +164,17 @@ Contenedor que inicializa:
 - Instancia del jugador (`Player`)
 - Tanques iniciales
 - `_preload_assets()`: fuerza la precarga de todos los assets pesados (frames de Bombardier, Death, SmokeTrail, proyectiles) para evitar micro-congelamientos durante la partida
-- Método `reset_player_state()`
+- Método `reset_player_state()`: reinicia hp (`PLAYER_INITIAL_HP`), `max_hp`, `nivel`, `misiles`, `apoyo`, `puntaje` y resetea los flags de mejora (`double_barrel_active`, `armor_active`, `tank_track_active` a `False`)
 
 ### 6.3 Sistema de Escenas (`sences/`)
 
 - **`Scene`** — Abstract Base Class. Define interfaz: `handle_events()`, `update()`, `render()`, `on_activate()`, `on_deactivate()`.
 - **`SceneManager`** — Mantiene la escena activa, delega eventos/update/render. `change_scene()` gestiona ciclo de vida.
-- **`MenuScene`** — Menú con "Jugar", "Opciones", "Salir". Fondo con escalado cover, sonido de menú.
+- **`MenuScene`** — Menú con "Jugar", "Tienda", "Opciones", "Salir". Fondo con escalado cover, sonido de menú. "Tienda" abre `ShopScene` en modo pre-partida (sin estado de jugador).
 - **`OptionsScene`** — Opciones principales ("Video", "Sonido", "Atrás"). Al seleccionar "Sonido" se despliega un submenú con controles de volumen: "general" (maestro), "música" (song.ogg, main.ogg, options.ogg, gameover.ogg), "efectos" (disparo, explosión, motor, avión, etc.) — cada uno con barra deslizadora ajustable con ←/→.
-- **`GameScene`** — Escena principal (~430 líneas). Orquesta todos los managers (PlayerController, EnemyManager, CollisionManager, ProgressionManager). Gestiona el sonido del motor en bucle según el movimiento del jugador (engine.ogg quieto / engine_2.ogg en movimiento).
+- **`ControlsScene`** — Pantalla de instrucciones/controles entre la tienda pre-partida y el juego. Acepta `pre_game_upgrade` opcional para aplicar la mejora comprada al nuevo `Player` al iniciar la partida.
+- **`ShopScene`** — Tienda de mejoras (~260 líneas). Fondo `menu_shop.png` con escalado cover. 3 mejoras: Armadura (+200 HP, daño reducido 50%), Doble Cañón (2 proyectiles por disparo), Orugas (+50% velocidad). Navegación con ←/→, selector verde (`DARK_GREEN_TEXT`). Botón "Atrás" abajo a la derecha con ↓. Vista previa del tanque con mejora aplicada. Sonido engine.ogg en loop; al presionar ↑ suena `engine_2.ogg` y genera humo (SmokeTrail) detrás del tanque como preview visual. Al seleccionar una mejora, se aplica al `Player` y se muestra pantalla de confirmación.
+- **`GameScene`** — Escena principal (~430 líneas). Orquesta todos los managers (PlayerController, EnemyManager, CollisionManager, ProgressionManager). Gestiona el sonido del motor en bucle según el movimiento del jugador (engine.ogg quieto / engine_2.ogg en movimiento). Al derrotar al Bombardier, inicia un contador de 5s mostrando "Misión 1 completada" y luego transiciona automáticamente a `ShopScene`.
 
 ### 6.4 Entidades (`entities/`)
 
@@ -171,7 +182,7 @@ Todas heredan de `pygame.sprite.Sprite`:
 
 | Clase | Archivo | Propósito |
 |---|---|---|
-| `Player` | `Player.py` | Tanque del jugador: HP, nivel, misiles, puntaje, escudos, movimiento |
+| `Player` | `Player.py` | Tanque del jugador: HP, `max_hp`, nivel, misiles, puntaje, escudos, movimiento, flags de mejora (`armor_active`, `double_barrel_active`, `tank_track_active`), `update_sprite()` elige sprite según mejora activa (prioridad: doble cañón > armadura > orugas > daño) |
 | `Tank` | `Tank.py` | Tanque enemigo rojo. Se mueve verticalmente |
 | `Tank_green` | `Tank.py` | Tanque enemigo verde (hereda de Tank). Más daño al colisionar. Resiste 2 disparos: 1er impacto → sprite `tank_green_damaged.png` + sonido `iron_sound`, 2do impacto → explota |
 | `Shooting` | `Shooting.py` | Proyectil del jugador. Se destruye al salir de pantalla |
@@ -188,9 +199,9 @@ Todas heredan de `pygame.sprite.Sprite`:
 
 | Clase | Archivo | Responsabilidad |
 |---|---|---|
-| `PlayerController` | `player_controller.py` | Input del teclado (movimiento, disparo, apoyo aéreo con sonido plane.ogg, escudo). Restringe límites |
+| `PlayerController` | `player_controller.py` | Input del teclado (movimiento, disparo, apoyo aéreo con sonido plane.ogg, escudo). `_get_speed()` aplica 1.5x si `tank_track_active`. Dispara 2 proyectiles si `double_barrel_active`. Restringe límites |
 | `EnemyManager` | `enemy_manager.py` | Actualiza posición de enemigos. `spawn_level(level)` crea oleadas |
-| `CollisionManager` | `collision_manager.py` | Centraliza TODAS las colisiones (proyectiles vs enemigos, jugador vs enemigos, power-ups, etc.) |
+| `CollisionManager` | `collision_manager.py` | Centraliza TODAS las colisiones (proyectiles vs enemigos, jugador vs enemigos, power-ups, etc.). Si `player.armor_active`, divide el daño recibido por 2 en colisiones con tanques rojos, verdes y proyectiles enemigos |
 | `ProgressionManager` | `progression_manager.py` | Recarga misiles cada 3s. Detecta oleadas limpiadas, sube nivel, cura, spawn |
 
 ### 6.6 Interfaz de Usuario (`ui/hud.py`)
@@ -245,16 +256,18 @@ Si nivel ≥ 7 y no hay jefe activo:
      → se mueve horizontalmente, dispara BoatProjectile
      → escudo cíclico: 3 s activo / 7 s inactivo, visualizado como óvalo naranja
      → si escudo activo: disparos rebotan con sonido iron_sound, sin daño
-  → CollisionManager.handle_shoot_vs_bombardier()
-  → CollisionManager.handle_enemy_bullets()
-  → al morir: BombardierSinkingEffect → animación de hundimiento → Game Over (victoria)
+   → CollisionManager.handle_shoot_vs_bombardier()
+   → CollisionManager.handle_enemy_bullets()
+   → al morir: BombardierSinkingEffect → animación de hundimiento
+   → se activa _mission_complete_timer (5s), se muestra "Misión 1 completada"
+   → al cumplirse el timer: transición a ShopScene (con el Player persistente)
 ```
 
 ---
 
 ## 8. Assets y Recursos
 
-- **Sprites del jugador**: 4 orientaciones + 2 variantes dañadas (`player_main_damaged.png` ≤100 HP, `player_main_damaged_2.png` ≤50 HP)
+- **Sprites del jugador**: 4 orientaciones + 2 variantes dañadas (`player_main_damaged.png` ≤100 HP, `player_main_damaged_2.png` ≤50 HP) + 3 sprites de mejora (`player_armor.png`, `player_double_barrel.png`, `player_tank_track.png` con 4 orientaciones cada uno)
 - **Tanques enemigos**: rojo (estándar) y verde (más daño, sprite `tank_green_damaged.png` tras 1er impacto)
 - **Fondos de nivel**: 4 variantes (lvl1_A .. D) con scroll en bucle
 - **Animaciones**:
@@ -262,6 +275,8 @@ Si nivel ≥ 7 y no hay jefe activo:
   - Estela de humo: 24 frames (`SmokeFrames/`)
   - Proyectil del jefe: 5 frames (`BoatShot/`)
   - Muerte del bombardero: animación en `BombardierDeathAnimation/`
+- **Fondo de tienda**: `menu_shop.png` con escalado cover
+- **Iconos de mejora**: `armor.png`, `double_barrel.png`, `tank_track.png`
 - **Spritesheet del jefe**: JPG con procesamiento de eliminación de fondo (flood-fill via `pygame.surfarray`)
 - **Sonido**: 12 OGGs — música (menu/song/options/gameover), motores (engine/engine_2 según movimiento), SFX (disparo, explosión, escudo, selección, avión de apoyo aéreo, derrota). Volumen segmentado en 3 categorías (general, música, efectos) configurable desde el submenú de opciones.
 
@@ -283,8 +298,10 @@ El juego utiliza **doble buffer**:
 | `game.py` | ~30 | Entry point, bucle principal |
 | `config/Settings.py` | ~221 | Constantes + clase GameConfig + sistema de volumen (con `_sound_volumes` por sonido) + sprites dañados del jugador |
 | `GameContext.py` | ~75 | Estado global, sprite groups, precarga de assets (`_preload_assets`) |
-| `sences/GameScene.py` | ~435 | Escena principal, orquesta managers + motor según movimiento + escudo del Bombardier |
+| `sences/GameScene.py` | ~475 | Escena principal, orquesta managers + motor según movimiento + escudo del Bombardier + misión completa → shop |
 | `sences/SceneManager.py` | ~50 | Máquina de estados de escenas |
+| `sences/ShopScene.py` | ~260 | Tienda de mejoras, selector verde, preview de tanque, humo, sonido motor |
+| `sences/ControlsScene.py` | ~80 | Pantalla de controles, acepta `pre_game_upgrade` |
 | `entities/Bombardier.py` | ~730 | Jefe final (entidad más compleja): entrada desde arriba, escudo periódico |
 | `gameplay/collision_manager.py` | ~210 | Lógica central de combate (incluye daño de tanques verdes en 2 golpes + sprites dañados del jugador) |
 | `gameplay/player_controller.py` | ~130 | Input del jugador |
