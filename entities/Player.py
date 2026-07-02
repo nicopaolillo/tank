@@ -3,7 +3,7 @@ import pygame
 from config.Settings import (
     WIDTH, HEIGHT, BLACK, 
     PLAYER_INITIAL_HP, PLAYER_INITIAL_LEVEL, 
-    PLAYER_INITIAL_MISSILES, PLAYER_INITIAL_SUPPORT
+    PLAYER_INITIAL_MISSILES, PLAYER_INITIAL_SUPPORT,
 )
 
 class Player(pygame.sprite.Sprite):
@@ -22,7 +22,11 @@ class Player(pygame.sprite.Sprite):
         self.facing = "up"
 
         self.hp = PLAYER_INITIAL_HP
+        self.max_hp = PLAYER_INITIAL_HP
         self.nivel = PLAYER_INITIAL_LEVEL
+        self.double_barrel_active = False
+        self.armor_active = False
+        self.tank_track_active = False
         self.update_sprite()
         self.misiles = PLAYER_INITIAL_MISSILES
         self.puntaje = 0
@@ -40,7 +44,13 @@ class Player(pygame.sprite.Sprite):
         self.shield_end_time = current_time + self.shield_duration
 
     def update_sprite(self) -> None:
-        if self.hp <= 50:
+        if self.double_barrel_active:
+            state = 'double_barrel'
+        elif self.armor_active:
+            state = 'armor'
+        elif self.tank_track_active:
+            state = 'tank_track'
+        elif self.hp <= 50:
             state = 'damaged_2'
         elif self.hp <= 100:
             state = 'damaged'

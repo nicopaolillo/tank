@@ -32,7 +32,6 @@ class ProgressionManager:
     def _handle_level_complete(self, enemy_manager, tank_red_list, tank_green_list, allow_enemy_spawn: bool) -> bool:
         if len(tank_red_list) == 0 and len(tank_green_list) == 0:
             self.player.nivel += 1
-            self.player.hp = min(self.player.hp + 100, 200)
             self.player.misiles += 3
 
             self.completed = True

@@ -8,6 +8,8 @@ from GameContext import GameContext
 from entities.SmokeTrail import SmokeTrail
 from entities.ShieldPowerUp import ShieldPowerUp
 from entities.AirSupportPickup import AirSupportPickup
+from entities.UpgradePickup import UpgradePickup
+from entities.HealthPickup import HealthPickup
 from entities.Bombardier import Bombardier
 from entities.Tank import Tank, Tank_green
 from sences.Scene import Scene
@@ -32,7 +34,7 @@ from config.Settings import (
 
 class GameScene(Scene):
 
-    def __init__(self, config: GameConfig, scene_manager):
+    def __init__(self, config: GameConfig, scene_manager, pre_game_upgrade=None):
         super().__init__(config)
         self.scene_manager = scene_manager
         self.context = GameContext(config)
@@ -47,6 +49,12 @@ class GameScene(Scene):
         self.smoke_list = self.context.smoke_list
         self.bombardier_list = self.context.bombardier_list
         self.context.reset_player_state()
+        if pre_game_upgrade is not None:
+            setattr(self.player, pre_game_upgrade, True)
+            if pre_game_upgrade == "armor_active":
+                self.player.max_hp += 200
+                self.player.hp += 200
+            self.player.update_sprite()
         self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in BACKGROUND_IMAGES]
         self.background_loop_count = max(1, len(self.background_images) - 1)
         self.final_background_index = len(self.background_images) - 1
@@ -54,6 +62,7 @@ class GameScene(Scene):
         self.final_background_transition_started = False
         self.final_background_active = False
         self.bombardier_defeated = False
+        self._mission_complete_timer = None
         self.current_background_index = 0
         self.next_background_index = 1 % self.background_loop_count
         self.current_background = self.background_images[self.current_background_index]
@@ -142,6 +151,17 @@ class GameScene(Scene):
         if self.pause or self.game_over:
             return
 
+        if self._mission_complete_timer is not None:
+            self._mission_complete_timer += dt
+            self.player_controller.update()
+            self.player_controller.clamp_bounds()
+            self._update_engine_sound()
+            self._update_smoke_trail()
+            self.smoke_list.update()
+            if self._mission_complete_timer >= 5.0:
+                self._go_to_shop()
+            return
+
         current_time = pygame.time.get_ticks() / 1000.0 - self.tiempo_inicio
         self.player.update_shield(current_time)
         self._check_final_background_transition()
@@ -168,6 +188,9 @@ class GameScene(Scene):
                 for bombardier in self.bombardier_list
             )
 
+        if self.bombardier_defeated and len(self.bombardier_list) == 0 and self._mission_complete_timer is None:
+            self._mission_complete_timer = 0.0
+
         level_up = self.progression_manager.update(
             current_time,
             self.enemy_manager,
@@ -183,7 +206,8 @@ class GameScene(Scene):
             self._spawn_shield_powerup()
         if level_up and self.player.nivel in (3, 5, 7):
             self._spawn_air_support_pickup()
-
+        if level_up and self.player.nivel in (4, 7):
+            self._spawn_health_pickup()
         if self.final_background_active:
             self._ensure_bombardier()
 
@@ -338,6 +362,23 @@ class GameScene(Scene):
         self.all_sprites.add(pickup)
         self.context.powerup_list.add(pickup)
 
+    def _spawn_upgrade_pickup(self) -> None:
+        pickup = UpgradePickup()
+        self.all_sprites.add(pickup)
+        self.context.powerup_list.add(pickup)
+
+    def _spawn_health_pickup(self) -> None:
+        pickup = HealthPickup()
+        self.all_sprites.add(pickup)
+        self.context.powerup_list.add(pickup)
+
+    def _go_to_shop(self) -> None:
+        from sences.ShopScene import ShopScene
+        self.config.game_channel.stop()
+        self.config.engine_channel.stop()
+        self._current_engine = None
+        self.scene_manager.change_scene(ShopScene(self.config, self.scene_manager, self.player))
+
     def _game_over_screen(self) -> None:
         # Play game over sound and stop game music (only once)
         if not self._game_over_shown:
@@ -421,6 +462,19 @@ class GameScene(Scene):
                 self.config.screen.blit(shield_surf, (r.x - 12, r.y - 12))
 
             Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player, active_bombardier)
+
+            if self._mission_complete_timer is not None:
+                remaining = max(0, 5.0 - self._mission_complete_timer)
+                complete_text = self.config.font_small.render(
+                    f"Misi\u00f3n 1 completada", True, DARK_GREEN_TEXT
+                )
+                complete_rect = complete_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 30))
+                self.config.screen.blit(complete_text, complete_rect)
+                timer_text = self.config.font_small.render(
+                    f"Transfiriendo a la tienda en {remaining:.0f}s...", True, GREEN_TEXT
+                )
+                timer_rect = timer_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 20))
+                self.config.screen.blit(timer_text, timer_rect)
 
             # Debug overlay: show FPS and player position only when toggled
             if self.show_debug:

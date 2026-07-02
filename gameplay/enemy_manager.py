@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from entities.Tank import Tank, Tank_green
-from config.Settings import TANK_GREEN_SPAWN_COUNT, TANK_RED_SPAWN_COUNT
-
 
 class EnemyManager:
 
@@ -18,8 +16,9 @@ class EnemyManager:
             tank.rect.y += tank.speed_y * 2.0
 
     def spawn_level(self, level: int) -> None:
-        num_green = TANK_GREEN_SPAWN_COUNT + level
-        num_red = TANK_RED_SPAWN_COUNT + level
+        capped_level = min(level, 5)
+        num_green = capped_level
+        num_red = capped_level
 
         for i in range(num_green):
             offset = 50 * i

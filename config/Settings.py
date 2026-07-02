@@ -25,7 +25,7 @@ PLAYER_SPEED = 3
 PLAYER_BOUNDS_LEFT = 150
 PLAYER_BOUNDS_RIGHT = 850
 
-TANK_RED_SPAWN_COUNT = 2
+TANK_RED_SPAWN_COUNT = 1
 TANK_GREEN_SPAWN_COUNT = 1
 
 MISSILE_RECHARGE_TIME = 3.0  # seconds
@@ -80,6 +80,9 @@ PLAYER_SPRITES = {
     'down': 'assets/player_main.png',
     'damaged': 'assets/player_main_damaged.png',
     'damaged_2': 'assets/player_main_damaged_2.png',
+    'double_barrel': 'assets/player_double_barrel.png',
+    'armor': 'assets/player_armor.png',
+    'tank_track': 'assets/player_tank_track.png',
 }
 
 PLAYER_SPRITE_SIZE = (75, 75)

@@ -16,7 +16,7 @@ class MenuScene(Scene):
         self._background_size = self.config.screen.get_size()
         self.background = self._build_cover_background(self._raw_background, self._background_size)
         self.selection_index = 0
-        self.items = ["Jugar", "Opciones", "Salir"]
+        self.items = ["Jugar", "Tienda", "Opciones", "Salir"]
 
     def _build_cover_background(self, image: pygame.Surface, target_size: tuple[int, int]) -> pygame.Surface:
         """Scale image to fully cover the render area without distortion."""
@@ -79,6 +79,11 @@ class MenuScene(Scene):
             from sences.ControlsScene import ControlsScene
 
             self.scene_manager.change_scene(ControlsScene(self.config, self.scene_manager))
+        elif choice == "Tienda":
+            self.config.main_channel.stop()
+            from sences.ShopScene import ShopScene
+
+            self.scene_manager.change_scene(ShopScene(self.config, self.scene_manager, player=None))
         elif choice == "Opciones":
             from sences.OptionsScene import OptionsScene
 

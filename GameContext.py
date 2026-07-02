@@ -67,7 +67,12 @@ class GameContext:
             PLAYER_INITIAL_MISSILES, PLAYER_INITIAL_SUPPORT
         )
         self.player.hp = PLAYER_INITIAL_HP
+        self.player.max_hp = PLAYER_INITIAL_HP
+        self.player.double_barrel_active = False
+        self.player.armor_active = False
+        self.player.tank_track_active = False
         self.player.nivel = PLAYER_INITIAL_LEVEL
         self.player.misiles = PLAYER_INITIAL_MISSILES
         self.player.apoyo = PLAYER_INITIAL_SUPPORT
         self.player.puntaje = 0
+        self.player.update_sprite()

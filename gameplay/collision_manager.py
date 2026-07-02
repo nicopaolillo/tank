@@ -11,6 +11,7 @@ from config.Settings import (
     AIR_SUPPORT_GREEN_POINTS,
     PLAYER_MAX_SHIELDS,
     PLAYER_MAX_SUPPORT,
+    PLAYER_INITIAL_HP,
     BOMBARDIER_PLAYER_SHOT_DAMAGE,
     BOMBARDIER_KILL_POINTS,
     BOMBARDIER_PROJECTILE_DAMAGE,
@@ -143,10 +144,18 @@ class CollisionManager:
                     self.powerup_list.remove(powerup)
                 from entities.ShieldPowerUp import ShieldPowerUp
                 from entities.AirSupportPickup import AirSupportPickup
+                from entities.UpgradePickup import UpgradePickup
+                from entities.HealthPickup import HealthPickup
                 if isinstance(powerup, ShieldPowerUp):
                     self.player.shield_inventory = min(self.player.shield_inventory + 1, PLAYER_MAX_SHIELDS)
                 elif isinstance(powerup, AirSupportPickup):
                     self.player.apoyo = min(self.player.apoyo + 1, PLAYER_MAX_SUPPORT)
+                elif isinstance(powerup, UpgradePickup):
+                    self.player.double_barrel_active = True
+                    self.player.hp = PLAYER_INITIAL_HP
+                    self.player.update_sprite()
+                elif isinstance(powerup, HealthPickup):
+                    self.player.hp = min(self.player.hp + 50, PLAYER_INITIAL_HP)
                 self.config.get_sound("select").play()
 
     def _remove_shoot(self, shoot) -> None:
@@ -162,7 +171,10 @@ class CollisionManager:
         for tank in crash_list:
             if self.player.shield_active:
                 continue
-            self.player.hp -= TANK_RED_HIT_DAMAGE
+            dmg = TANK_RED_HIT_DAMAGE
+            if self.player.armor_active:
+                dmg //= 2
+            self.player.hp -= dmg
             self.player.update_sprite()
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
@@ -179,7 +191,10 @@ class CollisionManager:
         for tank in crash_list:
             if self.player.shield_active:
                 continue
-            self.player.hp -= TANK_GREEN_HIT_DAMAGE
+            dmg = TANK_GREEN_HIT_DAMAGE
+            if self.player.armor_active:
+                dmg //= 2
+            self.player.hp -= dmg
             self.player.update_sprite()
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
@@ -198,7 +213,10 @@ class CollisionManager:
         if self.player.shield_active:
             return False
 
-        self.player.hp -= BOMBARDIER_PROJECTILE_DAMAGE * len(hits)
+        dmg = BOMBARDIER_PROJECTILE_DAMAGE * len(hits)
+        if self.player.armor_active:
+            dmg //= 2
+        self.player.hp -= dmg
         self.player.update_sprite()
         death = Death(self.player.rect.x, self.player.rect.y)
         death.animate()
