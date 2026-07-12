@@ -1,7 +1,7 @@
 import pygame
 import random
 
-from config.Settings import HEIGHT
+from config.Settings import HEIGHT, TANK_RED_SHOOT_DAMAGE, TANK_GREEN_SHOOT_DAMAGE
 
 class Tank(pygame.sprite.Sprite):
     def __init__(self, spawn_from_top: bool = False, max_start_offset: int = 300):
@@ -15,11 +15,11 @@ class Tank(pygame.sprite.Sprite):
         else:
             self.rect.y = random.randrange(max(0, HEIGHT - 350))
         self.speed_y = 1
+        self.last_fire_time = 0.0
+        self.shoot_damage = TANK_RED_SHOOT_DAMAGE
 
     def update(self):
-        if self.rect.y > HEIGHT:
-            self.rect.y = -10
-            self.rect.x = random.randrange(150,750)
+        pass
 
 
 class Tank_green(Tank):
@@ -29,5 +29,6 @@ class Tank_green(Tank):
         super().__init__(spawn_from_top=spawn_from_top, max_start_offset=max_start_offset)
         self.image = pygame.image.load("assets/tank_green.png").convert_alpha()
         self.hits = 0
+        self.shoot_damage = TANK_GREEN_SHOOT_DAMAGE
         if Tank_green.damaged_image is None:
             Tank_green.damaged_image = pygame.image.load("assets/tank_green_damaged.png").convert_alpha()

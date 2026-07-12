@@ -70,7 +70,7 @@ class GameScene(Scene):
         self.background_offset = 0.0
         self.background_scroll_speed = 80.0
         self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
-        self.enemy_manager = EnemyManager(self.all_sprites, self.tank_red_list, self.tank_green_list)
+        self.enemy_manager = EnemyManager(self.config, self.all_sprites, self.tank_red_list, self.tank_green_list, self.enemy_shoot_list)
         self.collision_manager = CollisionManager(
             config,
             self.player,
@@ -95,6 +95,7 @@ class GameScene(Scene):
         self.tiempo_inicio = pygame.time.get_ticks() / 1000.0
         self.show_debug = False
         self._current_engine = None
+        self._initial_spawn_timer = 2.0
 
     def on_activate(self) -> None:
         self.config.game_channel.play(self.config.get_sound('game'), loops=-1, fade_ms=100)
@@ -167,10 +168,17 @@ class GameScene(Scene):
         self._check_final_background_transition()
         self._update_background(dt)
 
+        if self._initial_spawn_timer > 0:
+            self._initial_spawn_timer -= dt
+            if self._initial_spawn_timer <= 0:
+                self._initial_spawn_timer = 0
+                self.enemy_manager.spawn_level(1)
+
         self.player_controller.update()
         self.player_controller.clamp_bounds()
         self._update_engine_sound()
         self.enemy_manager.update()
+        self.enemy_manager.try_enemy_shoot(current_time, self.player.nivel)
         self._update_smoke_trail()
         self._update_enemy_smoke_trails()
         self.smoke_list.update()
@@ -200,7 +208,10 @@ class GameScene(Scene):
                 self.final_background_transition_started
                 or self.player.nivel >= self.final_background_trigger_level - 1
             ),
-            allow_level_progression=not self.final_background_transition_started,
+            allow_level_progression=(
+                not self.final_background_transition_started
+                and self._initial_spawn_timer <= 0
+            ),
         )
         if level_up and self.player.nivel % 3 == 0:
             self._spawn_shield_powerup()

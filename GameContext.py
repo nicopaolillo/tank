@@ -29,7 +29,6 @@ class GameContext:
         self.pause = False
 
         self._preload_assets()
-        self._create_tanks()
 
         self.all_sprites.add(self.player)
 

@@ -5,10 +5,11 @@ from config.Settings import WHITE, HEIGHT, WIDTH
 
 class Shooting(pygame.sprite.Sprite):
 
-    def __init__(self, direction: str = "up"):
+    def __init__(self, direction: str = "up", damage: int = 0):
         super().__init__()
         self.direction = direction
         self.speed = 6
+        self.damage = damage
 
         bullet = pygame.image.load(
             "assets/bullet.png"

@@ -213,7 +213,7 @@ class CollisionManager:
         if self.player.shield_active:
             return False
 
-        dmg = BOMBARDIER_PROJECTILE_DAMAGE * len(hits)
+        dmg = sum(getattr(bullet, 'damage', BOMBARDIER_PROJECTILE_DAMAGE) for bullet in hits)
         if self.player.armor_active:
             dmg //= 2
         self.player.hp -= dmg
