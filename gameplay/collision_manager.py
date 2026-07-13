@@ -17,6 +17,7 @@ from config.Settings import (
     BOMBARDIER_PROJECTILE_DAMAGE,
 )
 from entities.Death import Death
+from entities.DebrisPiece import DebrisPiece
 from entities.Tank import Tank_green
 
 
@@ -46,6 +47,11 @@ class CollisionManager:
         self.bombardier_list = bombardier_list
         self.enemy_shoot_list = enemy_shoot_list
 
+    def _spawn_debris(self, x: int, y: int, prefix: str) -> None:
+        for i in range(7):
+            piece = DebrisPiece(x, y, prefix, i)
+            self.all_sprites.add(piece)
+
     def handle_red_tank_shots(self) -> None:
         for shoot in list(self.shoot_list):
             shoot_hits = pygame.sprite.spritecollide(shoot, self.tank_red_list, True)
@@ -56,6 +62,7 @@ class CollisionManager:
                     death = Death(tank.rect.x, tank.rect.y)
                     death.animate()
                     self.all_sprites.add(death)
+                    self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsRed")
                     self.player.puntaje += TANK_RED_KILL_POINTS
             elif shoot.rect.y < -10:
                 self._remove_shoot(shoot)
@@ -69,12 +76,14 @@ class CollisionManager:
                 death = Death(tank.rect.x, tank.rect.y)
                 death.animate()
                 self.all_sprites.add(death)
+                self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsRed")
                 self.player.puntaje += AIR_SUPPORT_RED_POINTS
             for tank in hits_green:
                 self.config.get_sound("explosion").play()
                 death = Death(tank.rect.x, tank.rect.y)
                 death.animate()
                 self.all_sprites.add(death)
+                self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsGreen")
                 self.player.puntaje += AIR_SUPPORT_GREEN_POINTS
             if apoyo.rect.y < -200:
                 if apoyo in self.all_sprites:
@@ -98,6 +107,7 @@ class CollisionManager:
                     death = Death(tank.rect.x, tank.rect.y)
                     death.animate()
                     self.all_sprites.add(death)
+                    self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsGreen")
                     self.config.get_sound("explosion").play()
 
     def handle_player_collisions(self) -> bool:
@@ -179,6 +189,7 @@ class CollisionManager:
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
             self.all_sprites.add(death)
+            self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsRed")
         if self.player.hp <= 0 and self.player in self.all_sprites:
             self.all_sprites.remove(self.player)
             return True
@@ -199,6 +210,7 @@ class CollisionManager:
             death = Death(self.player.rect.x, self.player.rect.y)
             death.animate()
             self.all_sprites.add(death)
+            self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsGreen")
             if self.player.hp <= 0:
                 if self.player in self.all_sprites:
                     self.all_sprites.remove(self.player)
