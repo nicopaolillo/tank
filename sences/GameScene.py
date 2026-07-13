@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, BACKGROUND_IMAGES
+from config.Settings import GameConfig, BACKGROUND_IMAGES, BACKGROUND_IMAGES_LVL2
 from GameContext import GameContext
 from entities.SmokeTrail import SmokeTrail
 from entities.ShieldPowerUp import ShieldPowerUp
@@ -11,7 +11,7 @@ from entities.AirSupportPickup import AirSupportPickup
 from entities.UpgradePickup import UpgradePickup
 from entities.HealthPickup import HealthPickup
 from entities.Bombardier import Bombardier
-from entities.Tank import Tank, Tank_green
+from entities.Tank import Tank, Tank_green, Tank_blue
 from sences.Scene import Scene
 from ui.hud import HudManager as Hud
 from gameplay.player_controller import PlayerController
@@ -34,11 +34,12 @@ from config.Settings import (
 
 class GameScene(Scene):
 
-    def __init__(self, config: GameConfig, scene_manager, pre_game_upgrade=None):
+    def __init__(self, config: GameConfig, scene_manager, pre_game_upgrade=None, mission=1, persistent_player=None):
         super().__init__(config)
         self.scene_manager = scene_manager
+        self.mission = mission
         self.context = GameContext(config)
-        self.player = self.context.player
+        self.player = persistent_player if persistent_player is not None else self.context.player
         self.all_sprites = self.context.all_sprites
         self.tank_red_list = self.context.tank_red_list
         self.tank_green_list = self.context.tank_green_list
@@ -48,17 +49,28 @@ class GameScene(Scene):
         self.crash_list = self.context.crash_list
         self.smoke_list = self.context.smoke_list
         self.bombardier_list = self.context.bombardier_list
-        self.context.reset_player_state()
-        if pre_game_upgrade is not None:
-            setattr(self.player, pre_game_upgrade, True)
-            if pre_game_upgrade == "armor_active":
-                self.player.max_hp += 200
-                self.player.hp += 200
+        self.tank_blue_list = self.context.tank_blue_list
+        if persistent_player is not None:
+            self.context.player.kill()
+            self.all_sprites.add(self.player)
+            self.player.nivel = 1
+            self.player.misiles = 3
+            self.player.puntaje = 0
             self.player.update_sprite()
-        self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in BACKGROUND_IMAGES]
+        else:
+            self.context.reset_player_state()
+            if pre_game_upgrade is not None:
+                setattr(self.player, pre_game_upgrade, True)
+                if pre_game_upgrade == "armor_active":
+                    self.player.max_hp += 200
+                    self.player.hp += 200
+                self.player.update_sprite()
+
+        bg_images = BACKGROUND_IMAGES_LVL2 if self.mission >= 2 else BACKGROUND_IMAGES
+        self.background_images = [self._prepare_background(pygame.image.load(path).convert()) for path in bg_images]
         self.background_loop_count = max(1, len(self.background_images) - 1)
         self.final_background_index = len(self.background_images) - 1
-        self.final_background_trigger_level = 7
+        self.final_background_trigger_level = 7 if self.mission < 2 else 999
         self.final_background_transition_started = False
         self.final_background_active = False
         self.bombardier_defeated = False
@@ -70,7 +82,7 @@ class GameScene(Scene):
         self.background_offset = 0.0
         self.background_scroll_speed = 80.0
         self.player_controller = PlayerController(config, self.player, self.all_sprites, self.shoot_list, self.apoyo_list)
-        self.enemy_manager = EnemyManager(self.config, self.all_sprites, self.tank_red_list, self.tank_green_list, self.enemy_shoot_list)
+        self.enemy_manager = EnemyManager(self.config, self.all_sprites, self.tank_red_list, self.tank_green_list, self.tank_blue_list, self.enemy_shoot_list)
         self.collision_manager = CollisionManager(
             config,
             self.player,
@@ -78,6 +90,7 @@ class GameScene(Scene):
             self.shoot_list,
             self.tank_red_list,
             self.tank_green_list,
+            self.tank_blue_list,
             self.apoyo_list,
             self.context.powerup_list,
             self.bombardier_list,
@@ -172,13 +185,14 @@ class GameScene(Scene):
             self._initial_spawn_timer -= dt
             if self._initial_spawn_timer <= 0:
                 self._initial_spawn_timer = 0
-                self.enemy_manager.spawn_level(1)
+                self.enemy_manager.spawn_level(1, self.mission)
 
         self.player_controller.update()
         self.player_controller.clamp_bounds()
         self._update_engine_sound()
         self.enemy_manager.update()
-        self.enemy_manager.try_enemy_shoot(current_time, self.player.nivel)
+        self.enemy_manager.try_enemy_shoot(current_time, self.player.nivel, self.mission)
+        self._update_blue_tank_bursts(dt)
         self._update_smoke_trail()
         self._update_enemy_smoke_trails()
         self.smoke_list.update()
@@ -186,6 +200,7 @@ class GameScene(Scene):
         self.collision_manager.handle_red_tank_shots()
         self.collision_manager.handle_air_support_collisions()
         self.collision_manager.handle_green_tank_shots()
+        self.collision_manager.handle_blue_tank_shots()
         self.collision_manager.handle_bombardier_shots()
         self.collision_manager.handle_powerup_collisions()
         self.game_over = self.collision_manager.handle_player_collisions()
@@ -204,6 +219,8 @@ class GameScene(Scene):
             self.enemy_manager,
             self.tank_red_list,
             self.tank_green_list,
+            tank_blue_list=self.tank_blue_list,
+            mission=self.mission,
             allow_enemy_spawn=not (
                 self.final_background_transition_started
                 or self.player.nivel >= self.final_background_trigger_level - 1
@@ -263,7 +280,7 @@ class GameScene(Scene):
         now = pygame.time.get_ticks()
         active_ids: set[int] = set()
 
-        enemies = [*self.tank_red_list.sprites(), *self.tank_green_list.sprites()]
+        enemies = [*self.tank_red_list.sprites(), *self.tank_green_list.sprites(), *self.tank_blue_list.sprites()]
         for tank in enemies:
             tank_id = id(tank)
             active_ids.add(tank_id)
@@ -291,6 +308,12 @@ class GameScene(Scene):
         stale_ids = [tid for tid in self._enemy_last_smoke_spawn_ms if tid not in active_ids]
         for tid in stale_ids:
             del self._enemy_last_smoke_spawn_ms[tid]
+
+    def _update_blue_tank_bursts(self, dt: float) -> None:
+        self.enemy_manager.try_trigger_blue_burst(dt)
+        for blue in self.tank_blue_list:
+            if blue.update_burst(dt):
+                self.enemy_manager.try_blue_burst()
 
     def _update_engine_sound(self) -> None:
         moving = self.player.speed_x != 0 or self.player.speed_y != 0

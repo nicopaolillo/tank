@@ -13,6 +13,7 @@ class GameContext:
         
         self.tank_red_list = pygame.sprite.Group()
         self.tank_green_list = pygame.sprite.Group()
+        self.tank_blue_list = pygame.sprite.Group()
         self.shoot_list = pygame.sprite.Group()
         self.enemy_shoot_list = pygame.sprite.Group()
         self.crash_list = pygame.sprite.Group()

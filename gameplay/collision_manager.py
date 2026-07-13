@@ -5,8 +5,10 @@ import pygame
 from config.Settings import (
     TANK_RED_HIT_DAMAGE,
     TANK_GREEN_HIT_DAMAGE,
+    TANK_BLUE_HIT_DAMAGE,
     TANK_RED_KILL_POINTS,
     TANK_GREEN_KILL_POINTS,
+    TANK_BLUE_KILL_POINTS,
     AIR_SUPPORT_RED_POINTS,
     AIR_SUPPORT_GREEN_POINTS,
     PLAYER_MAX_SHIELDS,
@@ -31,6 +33,7 @@ class CollisionManager:
         shoot_list,
         tank_red_list,
         tank_green_list,
+        tank_blue_list,
         apoyo_list,
         powerup_list,
         bombardier_list,
@@ -42,6 +45,7 @@ class CollisionManager:
         self.shoot_list = shoot_list
         self.tank_red_list = tank_red_list
         self.tank_green_list = tank_green_list
+        self.tank_blue_list = tank_blue_list
         self.apoyo_list = apoyo_list
         self.powerup_list = powerup_list
         self.bombardier_list = bombardier_list
@@ -67,10 +71,25 @@ class CollisionManager:
             elif shoot.rect.y < -10:
                 self._remove_shoot(shoot)
 
+    def handle_blue_tank_shots(self) -> None:
+        for shoot in list(self.shoot_list):
+            shoot_hits = pygame.sprite.spritecollide(shoot, self.tank_blue_list, False)
+            for tank in shoot_hits:
+                self._remove_shoot(shoot)
+                self.config.get_sound("explosion").play()
+                self.tank_blue_list.remove(tank)
+                self.all_sprites.remove(tank)
+                self.player.puntaje += TANK_BLUE_KILL_POINTS
+                death = Death(tank.rect.x, tank.rect.y)
+                death.animate()
+                self.all_sprites.add(death)
+                self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsRed")
+
     def handle_air_support_collisions(self) -> None:
         for apoyo in list(self.apoyo_list):
             hits_red = pygame.sprite.spritecollide(apoyo, self.tank_red_list, True)
             hits_green = pygame.sprite.spritecollide(apoyo, self.tank_green_list, True)
+            hits_blue = pygame.sprite.spritecollide(apoyo, self.tank_blue_list, True)
             for tank in hits_red:
                 self.config.get_sound("explosion").play()
                 death = Death(tank.rect.x, tank.rect.y)
@@ -85,6 +104,13 @@ class CollisionManager:
                 self.all_sprites.add(death)
                 self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsGreen")
                 self.player.puntaje += AIR_SUPPORT_GREEN_POINTS
+            for tank in hits_blue:
+                self.config.get_sound("explosion").play()
+                death = Death(tank.rect.x, tank.rect.y)
+                death.animate()
+                self.all_sprites.add(death)
+                self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsRed")
+                self.player.puntaje += TANK_BLUE_KILL_POINTS
             if apoyo.rect.y < -200:
                 if apoyo in self.all_sprites:
                     self.all_sprites.remove(apoyo)
@@ -114,6 +140,8 @@ class CollisionManager:
         if self._handle_red_tank_crash():
             return True
         if self._handle_green_tank_collision():
+            return True
+        if self._handle_blue_tank_collision():
             return True
         if self._handle_enemy_projectile_collision():
             return True
@@ -211,6 +239,28 @@ class CollisionManager:
             death.animate()
             self.all_sprites.add(death)
             self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsGreen")
+            if self.player.hp <= 0:
+                if self.player in self.all_sprites:
+                    self.all_sprites.remove(self.player)
+                return True
+        return False
+
+    def _handle_blue_tank_collision(self) -> bool:
+        crash_list = pygame.sprite.spritecollide(self.player, self.tank_blue_list, True)
+        if crash_list:
+            self.config.get_sound("explosion").play()
+        for tank in crash_list:
+            if self.player.shield_active:
+                continue
+            dmg = TANK_BLUE_HIT_DAMAGE
+            if self.player.armor_active:
+                dmg //= 2
+            self.player.hp -= dmg
+            self.player.update_sprite()
+            death = Death(self.player.rect.x, self.player.rect.y)
+            death.animate()
+            self.all_sprites.add(death)
+            self._spawn_debris(tank.rect.centerx, tank.rect.centery, "partsRed")
             if self.player.hp <= 0:
                 if self.player in self.all_sprites:
                     self.all_sprites.remove(self.player)

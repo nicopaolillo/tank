@@ -1,7 +1,7 @@
 import pygame
 import random
 
-from config.Settings import HEIGHT, TANK_RED_SHOOT_DAMAGE, TANK_GREEN_SHOOT_DAMAGE
+from config.Settings import HEIGHT, TANK_RED_SHOOT_DAMAGE, TANK_GREEN_SHOOT_DAMAGE, TANK_BLUE_SHOOT_DAMAGE, TANK_BLUE_BURST_COUNT, TANK_BLUE_BURST_DELAY
 
 class Tank(pygame.sprite.Sprite):
     def __init__(self, spawn_from_top: bool = False, max_start_offset: int = 300):
@@ -32,3 +32,27 @@ class Tank_green(Tank):
         self.shoot_damage = TANK_GREEN_SHOOT_DAMAGE
         if Tank_green.damaged_image is None:
             Tank_green.damaged_image = pygame.image.load("assets/tank_green_damaged.png").convert_alpha()
+
+
+class Tank_blue(Tank):
+    def __init__(self, spawn_from_top: bool = False, max_start_offset: int = 300):
+        super().__init__(spawn_from_top=spawn_from_top, max_start_offset=max_start_offset)
+        self.image = pygame.image.load("assets/tank_blue.png").convert_alpha()
+        self.shoot_damage = TANK_BLUE_SHOOT_DAMAGE
+        self.speed_y = 1
+        self._burst_remaining = 0
+        self._burst_timer = 0.0
+
+    def start_burst(self) -> None:
+        self._burst_remaining = TANK_BLUE_BURST_COUNT
+        self._burst_timer = 0.0
+
+    def update_burst(self, dt: float) -> bool:
+        if self._burst_remaining <= 0:
+            return False
+        self._burst_timer -= dt
+        if self._burst_timer <= 0.0:
+            self._burst_remaining -= 1
+            self._burst_timer = TANK_BLUE_BURST_DELAY
+            return True
+        return False

@@ -165,8 +165,14 @@ class ShopScene(Scene):
             )
 
     def _return_to_menu(self) -> None:
-        from sences.MenuScene import MenuScene
-        self.scene_manager.change_scene(MenuScene(self.config, self.scene_manager))
+        if self.player is not None:
+            from sences.GameScene import GameScene
+            self.scene_manager.change_scene(
+                GameScene(self.config, self.scene_manager, mission=2, persistent_player=self.player)
+            )
+        else:
+            from sences.MenuScene import MenuScene
+            self.scene_manager.change_scene(MenuScene(self.config, self.scene_manager))
 
     def update(self, dt: float) -> None:
         self._smoke_list.update()
