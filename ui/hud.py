@@ -92,7 +92,7 @@ class HudManager:
         screen.blit(text2, (x2, y2))
 
     @staticmethod
-    def draw_game_hud(screen: pygame.Surface, font: pygame.font.Font, player, bombardier=None) -> None:
+    def draw_game_hud(screen: pygame.Surface, font: pygame.font.Font, player, bombardier=None, helicopter=None) -> None:
         health_icon = HudManager._get_health_icon_small()
         if health_icon is not None:
             screen.blit(health_icon, (0, 58))
@@ -134,6 +134,28 @@ class HudManager:
             hp_text = font.render(str(bombardier_hp), True, (173, 255, 47))
             hp_rect = hp_text.get_rect()
             hp_rect.top = 60
+            hp_rect.right = icon_x - 8
+            screen.blit(hp_text, hp_rect)
+
+        if helicopter is not None and getattr(helicopter, "alive", lambda: False)():
+            screen_width = screen.get_width()
+            heli_hp = max(0, int(getattr(helicopter, "hp", 0)))
+
+            icon_src = helicopter.image
+            icon_bounds = icon_src.get_bounding_rect(min_alpha=1)
+            if icon_bounds.width > 0 and icon_bounds.height > 0:
+                icon_src = icon_src.subsurface(icon_bounds).copy()
+            heli_icon = pygame.transform.smoothscale(icon_src, (34, 34))
+
+            icon_x = screen_width - 38
+            icon_y = 58
+            if bombardier is not None and getattr(bombardier, "alive", lambda: False)():
+                icon_y = 120
+            screen.blit(heli_icon, (icon_x, icon_y))
+
+            hp_text = font.render(str(heli_hp), True, (173, 255, 47))
+            hp_rect = hp_text.get_rect()
+            hp_rect.top = icon_y + 2
             hp_rect.right = icon_x - 8
             screen.blit(hp_text, hp_rect)
 

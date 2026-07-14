@@ -11,6 +11,7 @@ from entities.AirSupportPickup import AirSupportPickup
 from entities.UpgradePickup import UpgradePickup
 from entities.HealthPickup import HealthPickup
 from entities.Bombardier import Bombardier
+from entities.Helicopter import Helicopter
 from entities.Tank import Tank, Tank_green, Tank_blue
 from sences.Scene import Scene
 from ui.hud import HudManager as Hud
@@ -29,6 +30,10 @@ from config.Settings import (
     BOMBARDIER_WATER_BOTTOM,
     BOMBARDIER_LEFT_BOUND,
     BOMBARDIER_RIGHT_BOUND,
+    HELICOPTER_LEFT_BOUND,
+    HELICOPTER_RIGHT_BOUND,
+    HELICOPTER_Y_POSITION,
+    HELICOPTER_SCROLL_DECEL_RATE,
 )
 
 
@@ -49,6 +54,7 @@ class GameScene(Scene):
         self.crash_list = self.context.crash_list
         self.smoke_list = self.context.smoke_list
         self.bombardier_list = self.context.bombardier_list
+        self.helicopter_list = self.context.helicopter_list
         self.tank_blue_list = self.context.tank_blue_list
         if persistent_player is not None:
             self.context.player.kill()
@@ -74,6 +80,9 @@ class GameScene(Scene):
         self.final_background_transition_started = False
         self.final_background_active = False
         self.bombardier_defeated = False
+        self.helicopter_defeated = False
+        self._scroll_deceleration_started = False
+        self._scroll_deceleration_complete = False
         self._mission_complete_timer = None
         self.current_background_index = 0
         self.next_background_index = 1 % self.background_loop_count
@@ -95,6 +104,7 @@ class GameScene(Scene):
             self.context.powerup_list,
             self.bombardier_list,
             self.enemy_shoot_list,
+            self.helicopter_list,
         )
         self.progression_manager = ProgressionManager(self.player)
         self.game_over = False
@@ -202,6 +212,7 @@ class GameScene(Scene):
         self.collision_manager.handle_green_tank_shots()
         self.collision_manager.handle_blue_tank_shots()
         self.collision_manager.handle_bombardier_shots()
+        self.collision_manager.handle_helicopter_shots()
         self.collision_manager.handle_powerup_collisions()
         self.game_over = self.collision_manager.handle_player_collisions()
 
@@ -211,8 +222,19 @@ class GameScene(Scene):
                 for bombardier in self.bombardier_list
             )
 
+        if not self.helicopter_defeated:
+            self.helicopter_defeated = any(
+                getattr(helicopter, "is_destroyed", False)
+                for helicopter in self.helicopter_list
+            )
+
         if self.bombardier_defeated and len(self.bombardier_list) == 0 and self._mission_complete_timer is None:
             self._mission_complete_timer = 0.0
+
+        if self.helicopter_defeated and len(self.helicopter_list) == 0 and self._mission_complete_timer is None:
+            self._mission_complete_timer = 0.0
+
+        self._handle_scroll_deceleration(dt)
 
         level_up = self.progression_manager.update(
             current_time,
@@ -223,10 +245,12 @@ class GameScene(Scene):
             mission=self.mission,
             allow_enemy_spawn=not (
                 self.final_background_transition_started
+                or self._scroll_deceleration_started
                 or self.player.nivel >= self.final_background_trigger_level - 1
             ),
             allow_level_progression=(
                 not self.final_background_transition_started
+                and not self._scroll_deceleration_started
                 and self._initial_spawn_timer <= 0
             ),
         )
@@ -237,7 +261,55 @@ class GameScene(Scene):
         if level_up and self.player.nivel in (4, 7):
             self._spawn_health_pickup()
         if self.final_background_active:
-            self._ensure_bombardier()
+            if self.mission < 2:
+                self._ensure_bombardier()
+            else:
+                self._ensure_helicopter()
+
+    def _handle_scroll_deceleration(self, dt: float) -> None:
+        if self.mission < 2:
+            return
+        if self._scroll_deceleration_complete:
+            return
+        if self._scroll_deceleration_started:
+            self.background_scroll_speed = max(
+                0.0, self.background_scroll_speed - HELICOPTER_SCROLL_DECEL_RATE * dt
+            )
+            if self.background_scroll_speed <= 0.0:
+                self.background_scroll_speed = 0.0
+                self._scroll_deceleration_complete = True
+                self.final_background_active = True
+                self.background_offset = 0.0
+                self.current_background = self.background_images[self.final_background_index]
+                self.next_background = self.current_background
+            return
+        if (
+            self.mission >= 2
+            and self.player.nivel >= 7
+            and not self.final_background_active
+        ):
+            self._scroll_deceleration_started = True
+            self.enemy_manager.clear_all_enemies()
+
+    def _ensure_helicopter(self) -> None:
+        if self.helicopter_defeated:
+            return
+        if len(self.helicopter_list) > 0:
+            return
+        if self.mission < 2:
+            return
+
+        y_position = max(60, min(HELICOPTER_Y_POSITION, HEIGHT // 2 - 40))
+        helicopter = Helicopter(
+            enemy_shoot_list=self.enemy_shoot_list,
+            all_sprites=self.all_sprites,
+            target=self.player,
+            left_bound=HELICOPTER_LEFT_BOUND,
+            right_bound=HELICOPTER_RIGHT_BOUND,
+            y_position=y_position,
+        )
+        self.helicopter_list.add(helicopter)
+        self.all_sprites.add(helicopter)
 
     def _check_final_background_transition(self) -> None:
         if self.final_background_transition_started:
@@ -495,7 +567,11 @@ class GameScene(Scene):
                 pygame.draw.ellipse(shield_surf, (255, 180, 0, 90), shield_surf.get_rect(), 4)
                 self.config.screen.blit(shield_surf, (r.x - 12, r.y - 12))
 
-            Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player, active_bombardier)
+            active_helicopter = self.helicopter_list.sprites()[0] if len(self.helicopter_list) > 0 else None
+            if active_helicopter is not None and getattr(active_helicopter, "is_destroyed", False):
+                active_helicopter = None
+
+            Hud.draw_game_hud(self.config.screen, self.config.font_small, self.player, active_bombardier, active_helicopter)
 
             if self._mission_complete_timer is not None:
                 remaining = max(0, 5.0 - self._mission_complete_timer)

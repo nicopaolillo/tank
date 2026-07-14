@@ -17,6 +17,8 @@ from config.Settings import (
     BOMBARDIER_PLAYER_SHOT_DAMAGE,
     BOMBARDIER_KILL_POINTS,
     BOMBARDIER_PROJECTILE_DAMAGE,
+    HELICOPTER_PLAYER_SHOT_DAMAGE,
+    HELICOPTER_KILL_POINTS,
 )
 from entities.Death import Death
 from entities.DebrisPiece import DebrisPiece
@@ -38,6 +40,7 @@ class CollisionManager:
         powerup_list,
         bombardier_list,
         enemy_shoot_list,
+        helicopter_list,
     ):
         self.config = config
         self.player = player
@@ -50,6 +53,7 @@ class CollisionManager:
         self.powerup_list = powerup_list
         self.bombardier_list = bombardier_list
         self.enemy_shoot_list = enemy_shoot_list
+        self.helicopter_list = helicopter_list
 
     def _spawn_debris(self, x: int, y: int, prefix: str) -> None:
         for i in range(7):
@@ -169,6 +173,31 @@ class CollisionManager:
 
                 if boat.take_damage(BOMBARDIER_PLAYER_SHOT_DAMAGE):
                     self.player.puntaje += BOMBARDIER_KILL_POINTS
+                    self.config.get_sound("explosion").play()
+                else:
+                    self.config.get_sound("explosion").play()
+
+    def handle_helicopter_shots(self) -> None:
+        for shoot in list(self.shoot_list):
+            hits = pygame.sprite.spritecollide(shoot, self.helicopter_list, False)
+            if not hits:
+                continue
+
+            self._remove_shoot(shoot)
+            for heli in hits:
+                if getattr(heli, "is_destroyed", False):
+                    continue
+
+                hit_fx = Death(heli.rect.centerx, heli.rect.centery)
+                hit_fx.animate()
+                self.all_sprites.add(hit_fx)
+
+                if getattr(heli, "_shield_active", False) or getattr(heli, "_entering", False):
+                    self.config.get_sound("iron").play()
+                    continue
+
+                if heli.take_damage(HELICOPTER_PLAYER_SHOT_DAMAGE):
+                    self.player.puntaje += HELICOPTER_KILL_POINTS
                     self.config.get_sound("explosion").play()
                 else:
                     self.config.get_sound("explosion").play()

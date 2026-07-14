@@ -21,6 +21,7 @@ class GameContext:
         self.powerup_list = pygame.sprite.Group()
         self.smoke_list = pygame.sprite.Group()
         self.bombardier_list = pygame.sprite.Group()
+        self.helicopter_list = pygame.sprite.Group()
 
         self.all_sprites = pygame.sprite.Group()
 
