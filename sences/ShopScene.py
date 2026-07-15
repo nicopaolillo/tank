@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, WIDTH, HEIGHT, DARK_GREEN_TEXT, GREEN_TEXT, PLAYER_SPRITE_SIZE
+from config.Settings import GameConfig, WIDTH, HEIGHT, DARK_GREEN_TEXT, GREEN_TEXT, PLAYER_SPRITE_SIZE, set_pending_pre_game_upgrade
 from sences.Scene import Scene
 from entities.SmokeTrail import SmokeTrail
 
@@ -158,11 +158,9 @@ class ShopScene(Scene):
             self._applied_upgrade = item["name"]
             self._selected = True
         else:
-            self._pre_game_upgrade = attr
-            from sences.ControlsScene import ControlsScene
-            self.scene_manager.change_scene(
-                ControlsScene(self.config, self.scene_manager, pre_game_upgrade=attr)
-            )
+            set_pending_pre_game_upgrade(attr)
+            self._applied_upgrade = item["name"]
+            self._selected = True
 
     def _return_to_menu(self) -> None:
         if self.player is not None:
@@ -253,7 +251,11 @@ class ShopScene(Scene):
         text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 40))
         self.config.screen.blit(text, text_rect)
 
-        sub = self.config.font_small.render("Preparando misi\u00f3n 2...", True, DARK_GREEN_TEXT)
+        if self.player is not None:
+            sub_text = "Preparando misi\u00f3n 2..."
+        else:
+            sub_text = "Mejora guardada. Volviendo al men\u00fa..."
+        sub = self.config.font_small.render(sub_text, True, DARK_GREEN_TEXT)
         sub_rect = sub.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30))
         self.config.screen.blit(sub, sub_rect)
 

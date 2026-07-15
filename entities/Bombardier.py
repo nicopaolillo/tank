@@ -483,7 +483,7 @@ class Bombardier(pygame.sprite.Sprite):
 
         self.left_bound = left_bound
         self.right_bound = right_bound
-        self._target_y = y_position - 60
+        self._target_y = y_position - 80
         self._entrance_speed = 1.0
         self.speed_x = 2.2
         self.direction = 1

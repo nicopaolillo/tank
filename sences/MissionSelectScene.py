@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, WIDTH, HEIGHT, GREEN_TEXT, DARK_GREEN_TEXT
+from config.Settings import GameConfig, WIDTH, HEIGHT, GREEN_TEXT, DARK_GREEN_TEXT, get_pending_pre_game_upgrade
 from sences.Scene import Scene
 
 
@@ -67,15 +67,16 @@ class MissionSelectScene(Scene):
 
     def _execute_selected(self) -> None:
         choice = self.items[self.selection_index]
+        pending = get_pending_pre_game_upgrade()
         if choice == "Misión 1":
             self.config.options_channel.stop()
             from sences.ControlsScene import ControlsScene
-            self.scene_manager.change_scene(ControlsScene(self.config, self.scene_manager))
+            self.scene_manager.change_scene(ControlsScene(self.config, self.scene_manager, pre_game_upgrade=pending))
         elif choice == "Misión 2":
             self.config.options_channel.stop()
             from sences.GameScene import GameScene
             self.scene_manager.change_scene(
-                GameScene(self.config, self.scene_manager, mission=2)
+                GameScene(self.config, self.scene_manager, mission=2, pre_game_upgrade=pending)
             )
         elif choice == "Atrás":
             self._go_back()

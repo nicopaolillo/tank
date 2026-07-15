@@ -168,6 +168,8 @@ class GameScene(Scene):
             elif event.type == pygame.KEYUP:
                 self.player_controller.handle_keyup(event)
 
+        self.player_controller.flush_pending_shoot()
+
     def _pause_screen(self) -> None:
         Hud.draw_pause_overlay(self.config.screen, self.config.font_small, self.config.font_large, WIDTH, HEIGHT)
 

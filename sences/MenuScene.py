@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 import pygame
 
-from config.Settings import GameConfig, WIDTH, HEIGHT, GREEN_TEXT, DARK_GREEN_TEXT
+from config.Settings import GameConfig, WIDTH, HEIGHT, GREEN_TEXT, DARK_GREEN_TEXT, get_pending_pre_game_upgrade
 from sences.Scene import Scene
 
 
@@ -77,8 +77,8 @@ class MenuScene(Scene):
         if choice == "Jugar":
             self.config.main_channel.stop()
             from sences.ControlsScene import ControlsScene
-
-            self.scene_manager.change_scene(ControlsScene(self.config, self.scene_manager))
+            pending = get_pending_pre_game_upgrade()
+            self.scene_manager.change_scene(ControlsScene(self.config, self.scene_manager, pre_game_upgrade=pending))
         elif choice == "Seleccionar misión":
             self.config.main_channel.stop()
             from sences.MissionSelectScene import MissionSelectScene

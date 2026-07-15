@@ -23,6 +23,7 @@ class PlayerController:
         self.apoyo_list = apoyo_list
         self.last_fire_time = -MISSILE_FIRE_COOLDOWN
         self.min_top_bound = 0
+        self._pending_shoot_time: float | None = None
         self._keys = {
             pygame.K_LEFT: False,
             pygame.K_RIGHT: False,
@@ -44,31 +45,27 @@ class PlayerController:
         if event.key == pygame.K_LEFT:
             self._keys[pygame.K_LEFT] = True
             self.player.speed_x = -speed
-            self.player.facing = "left"
-            self.player.update_sprite()
         elif event.key == pygame.K_RIGHT:
             self._keys[pygame.K_RIGHT] = True
             self.player.speed_x = speed
-            self.player.facing = "right"
-            self.player.update_sprite()
         elif event.key == pygame.K_UP:
             self._keys[pygame.K_UP] = True
             self.player.speed_y = -speed
-            self.player.facing = "up"
-            self.player.update_sprite()
         elif event.key == pygame.K_DOWN:
             self._keys[pygame.K_DOWN] = True
             self.player.speed_y = speed
-            self.player.facing = "down"
-            self.player.update_sprite()
         elif event.key == pygame.K_q and self.player.apoyo > 0:
             self._spawn_support()
         elif event.key == pygame.K_w:
             self.player.activate_shield(elapsed_time)
         elif event.key == pygame.K_SPACE and self.player.misiles > 0:
-            self._try_shoot(elapsed_time)
+            self._pending_shoot_time = elapsed_time
+            return
+
+        self._update_facing()
 
     def handle_keyup(self, event: pygame.event.EventType) -> None:
+        self._sync_keys_from_hardware()
         speed = self._get_speed()
         if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
             self._keys[event.key] = False
@@ -101,6 +98,51 @@ class PlayerController:
         if self.player.rect.bottom > HEIGHT:
             self.player.rect.bottom = HEIGHT
 
+    def _sync_keys_from_hardware(self) -> None:
+        state = pygame.key.get_pressed()
+        self._keys[pygame.K_LEFT] = bool(state[pygame.K_LEFT])
+        self._keys[pygame.K_RIGHT] = bool(state[pygame.K_RIGHT])
+        self._keys[pygame.K_UP] = bool(state[pygame.K_UP])
+        self._keys[pygame.K_DOWN] = bool(state[pygame.K_DOWN])
+
+    def flush_pending_shoot(self) -> None:
+        if self._pending_shoot_time is None:
+            return
+        t = self._pending_shoot_time
+        self._pending_shoot_time = None
+        self._sync_keys_from_hardware()
+        self._update_facing()
+        self._try_shoot(t)
+
+    def _update_facing(self) -> None:
+        state = pygame.key.get_pressed()
+        up = state[pygame.K_UP]
+        down = state[pygame.K_DOWN]
+        left = state[pygame.K_LEFT]
+        right = state[pygame.K_RIGHT]
+
+        if not (up or down or left or right):
+            return
+
+        if up and left:
+            self.player.facing = "up_left"
+        elif up and right:
+            self.player.facing = "up_right"
+        elif down and left:
+            self.player.facing = "down_left"
+        elif down and right:
+            self.player.facing = "down_right"
+        elif up:
+            self.player.facing = "up"
+        elif down:
+            self.player.facing = "down"
+        elif left:
+            self.player.facing = "left"
+        elif right:
+            self.player.facing = "right"
+
+        self.player.update_sprite()
+
     def _spawn_support(self) -> None:
         apoyo = AirSupport()
         apoyo.rect.x = self.player.rect.x + 10
@@ -118,37 +160,36 @@ class PlayerController:
         direction = getattr(self.player, "facing", "up")
         shoot1 = Shooting(direction)
 
-        if direction == "left":
-            shoot1.rect.centery = self.player.rect.centery
-            shoot1.rect.right = self.player.rect.left - 2
-        elif direction == "right":
-            shoot1.rect.centery = self.player.rect.centery
-            shoot1.rect.left = self.player.rect.right + 2
-        elif direction == "down":
-            shoot1.rect.centerx = self.player.rect.centerx + 3
-            shoot1.rect.top = self.player.rect.bottom - 2
-        else:
-            shoot1.rect.centerx = self.player.rect.centerx + 3
-            shoot1.rect.bottom = self.player.rect.top + 2
+        cx = self.player.rect.centerx
+        cy = self.player.rect.centery
+        half_w = self.player.rect.width // 2
+        half_h = self.player.rect.height // 2
+
+        offsets = {
+            "up": (0, -half_h - 2),
+            "down": (0, half_h + 2),
+            "left": (-half_w - 2, 0),
+            "right": (half_w + 2, 0),
+            "up_left": (-half_w - 2, -half_h - 2),
+            "up_right": (half_w + 2, -half_h - 2),
+            "down_left": (-half_w - 2, half_h + 2),
+            "down_right": (half_w + 2, half_h + 2),
+        }
+
+        ox, oy = offsets.get(direction, (0, -half_h - 2))
+        shoot1.rect.center = (cx + ox, cy + oy)
 
         self.all_sprites.add(shoot1)
         self.shoot_list.add(shoot1)
 
         if self.player.double_barrel_active:
             shoot2 = Shooting(direction)
-            offset = 10
-            if direction == "left":
-                shoot2.rect.centery = self.player.rect.centery + offset
-                shoot2.rect.right = self.player.rect.left - 2
-            elif direction == "right":
-                shoot2.rect.centery = self.player.rect.centery + offset
-                shoot2.rect.left = self.player.rect.right + 2
-            elif direction == "down":
-                shoot2.rect.centerx = self.player.rect.centerx + offset + 3
-                shoot2.rect.top = self.player.rect.bottom - 2
+            if direction in ("left", "right"):
+                shoot2.rect.center = (cx + ox, cy + oy + 10)
+            elif direction in ("up", "down"):
+                shoot2.rect.center = (cx + ox + 10, cy + oy)
             else:
-                shoot2.rect.centerx = self.player.rect.centerx + offset + 3
-                shoot2.rect.bottom = self.player.rect.top + 2
+                shoot2.rect.center = (cx + ox, cy + oy + 10)
             self.all_sprites.add(shoot2)
             self.shoot_list.add(shoot2)
 

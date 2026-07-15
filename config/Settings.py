@@ -67,6 +67,18 @@ HELICOPTER_PROJECTILE_DAMAGE = 15
 HELICOPTER_KILL_POINTS = 2500
 HELICOPTER_SHOOT_COOLDOWN = 1.0
 
+# Pre-game upgrade persistence (set from ShopScene, consumed on game start)
+_pending_pre_game_upgrade: str | None = None
+
+
+def get_pending_pre_game_upgrade() -> str | None:
+    return _pending_pre_game_upgrade
+
+
+def set_pending_pre_game_upgrade(upgrade: str | None) -> None:
+    global _pending_pre_game_upgrade
+    _pending_pre_game_upgrade = upgrade
+
 HELICOPTER_LEFT_BOUND = 50
 HELICOPTER_RIGHT_BOUND = WIDTH - 50
 HELICOPTER_Y_POSITION = 80
@@ -247,6 +259,14 @@ class GameConfig:
             image = pygame.transform.rotate(image, -90)
         elif direction == 'down':
             image = pygame.transform.rotate(image, 180)
+        elif direction == 'up_left':
+            image = pygame.transform.rotate(image, 45)
+        elif direction == 'up_right':
+            image = pygame.transform.rotate(image, -45)
+        elif direction == 'down_left':
+            image = pygame.transform.rotate(image, 135)
+        elif direction == 'down_right':
+            image = pygame.transform.rotate(image, -135)
 
         self._player_sprite_cache[cache_key] = image
         return image.copy()
